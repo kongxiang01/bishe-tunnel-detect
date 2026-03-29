@@ -1,0 +1,9 @@
+server:
+  port: 8080
+
+spring:
+  jackson:
+    time-zone: Asia/Shanghai
+
+# For MVP scaffold, database tables are optional at startup.
+# API currently returns in-memory demo data for easy first run.

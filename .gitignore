@@ -1,0 +1,15 @@
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Java
+backend/target/
+
+# Python
+algorithm/.venv/
+algorithm/__pycache__/
+algorithm/.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
