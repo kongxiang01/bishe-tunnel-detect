@@ -13,3 +13,7 @@ algorithm/.pytest_cache/
 # OS
 .DS_Store
 Thumbs.db
+
+# Markdown docs
+*.md
+!README.md
