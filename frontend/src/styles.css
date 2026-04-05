@@ -28,14 +28,55 @@ body {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
 }
 
-.video-placeholder {
-  height: 240px;
-  border: 2px dashed #9ca3af;
-  border-radius: 8px;
+.stream-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  color: #6b7280;
+  margin-bottom: 10px;
+}
+
+.simulate-btn {
+  background-color: #10b981;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: opacity 0.2s;
+}
+
+.simulate-btn:hover {
+  opacity: 0.8;
+}
+
+/* 播放器容器核心样式 */
+.player-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 810px; /* YOLOv5 测试图差不多这宽度，我们做个限制 */
+  margin: 0 auto;
+  border: 2px solid #374151;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #000;
+}
+
+/* 底层的“假视频拉流” */
+.stream-video {
+  display: block;  /* 去除 img/video 自带的底边距空隙 */
+  width: 100%;
+  height: auto;
+}
+
+/* 顶层覆盖的画框画布 */
+.overlay-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;  /* CSS 宽高等于视频宽高，自动贴合缩放，这极具魔力！ */
+  height: 100%;
+  pointer-events: none; /* 让鼠标点击穿透给后面的视频播放器原生控件 */
 }
 
 .badge {
@@ -60,8 +101,7 @@ table {
   border-collapse: collapse;
 }
 
-th,
-td {
+th, td {
   border-bottom: 1px solid #e5e7eb;
   text-align: left;
   padding: 8px;

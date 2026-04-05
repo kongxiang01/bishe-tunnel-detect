@@ -17,3 +17,5 @@ Thumbs.db
 # Markdown docs
 *.md
 !README.md
+
+*.mp4
