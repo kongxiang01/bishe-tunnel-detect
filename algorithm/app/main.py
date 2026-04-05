@@ -1,9 +1,16 @@
 import os
 import cv2
 import torch
+import asyncio
+import time
+import warnings
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
+
+# 屏蔽 YOLOv5 源码在较新版本 PyTorch 下产生的 FutureWarning 警告，保持日志清爽
+warnings.filterwarnings("ignore", category=FutureWarning, module="torch.cuda.amp.autocast")
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 app = FastAPI(title="Tunnel MVP Algorithm Service")
 
@@ -18,42 +25,92 @@ MODEL_PATH = os.path.join(BASE_DIR, "yolov5s.pt")
 model = torch.hub.load(YOLO_DIR, 'custom', path=MODEL_PATH, source='local')
 model.conf = 0.5  # 置信度阈值
 
-class InferRequest(BaseModel):
-    frame_id: int
-    image_path: str  # MVP: 接收绝对路径以保证最快速度
-
 @app.get("/health")
 def health():
     return {"status": "online", "service": "algorithm", "model": "YOLOv5s"}
 
-@app.post("/infer")
-def infer(req: InferRequest):
-    if not os.path.exists(req.image_path):
-        raise HTTPException(status_code=404, detail="Image file not found")
-        
-    # 直接使用 OpenCV 高速读取本地图片
-    img = cv2.imread(req.image_path)
-    if img is None:
-        raise HTTPException(status_code=400, detail="Cannot read image")
-        
-    # 模型推理阶段
-    results = model(img)
+@app.websocket("/ws/stream")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    client_ip = websocket.client.host
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] 🔌 新的前端连接已建立: {client_ip}")
     
-    # 解析并格式化 YOLOv5 返回的数据
-    detections = []
-    # results.xyxy[0] 格式为 [x1, y1, x2, y2, confidence, class]
-    for *box, conf, cls in results.xyxy[0].tolist():
-        detections.append({
-            "class_name": model.names[int(cls)],
-            "confidence": round(conf, 3),
-            "bbox": [round(x, 1) for x in box]
-        })
+    # 彻底模拟真实摄像头/流媒体服务器架构的推拉流关系
+    stream_url = "http://127.0.0.1:5000/stream"
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 正在拉取源视频流: {stream_url}")
+    
+    cap = cv2.VideoCapture(stream_url)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1) 
+    
+    if not cap.isOpened():
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] ❌ 无法连接到视频流: {stream_url}")
+        await websocket.close(code=1011, reason="Stream unreachable")
+        return
 
-    # MVP stub: 由于还没有引入 DeepSORT 追踪，速度等字段暂时预留为空或简写
-    return {
-        "frame_id": req.frame_id,
-        "timestamp": datetime.now().isoformat(),
-        "vehicle_count": len(detections),
-        "detections": detections,
-        "events": []
-    }
+    # 拉取流基础信息
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] 🎥 视频流拉取成功! 初始诊断信息 => 分辨率: {width}x{height}, 源端标称FPS: {fps}")
+    
+    try:
+        frame_id = 0
+        skip_counter = 0
+        
+        # 用于计算算法处理耗时
+        algo_fps_start = time.time()
+        algo_frame_count = 0
+        
+        while cap.isOpened():
+            grab_start = time.time()
+            ret, frame = cap.read()
+            if not ret:
+                await asyncio.sleep(0.1)
+                continue
+                
+            skip_counter += 1
+            # 抽帧设置：如果算力跟不上，可以改这里跳帧，目前先全收
+            if skip_counter % 1 != 0:
+                continue 
+                
+            frame_id += 1
+            algo_frame_count += 1
+            
+            # --- 开始推理统计 ---
+            infer_start = time.time()
+            results = model(frame)
+            infer_cost_ms = (time.time() - infer_start) * 1000
+            
+            detections = []
+            for *box, conf, cls in results.xyxy[0].tolist():
+                detections.append({
+                    "class_name": model.names[int(cls)],
+                    "confidence": round(conf, 3),
+                    "bbox": [round(x, 1) for x in box]
+                })
+            
+            # --- 周期性日志输出 (每秒输出1次) ---
+            now = time.time()
+            if now - algo_fps_start >= 1.0:
+                current_fps = algo_frame_count / (now - algo_fps_start)
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] ⚙️ [算法引擎] 实时算力: {current_fps:.1f} FPS | 最近单帧推理耗时: {infer_cost_ms:.1f} ms | 当帧捕获目标: {len(detections)} 个")
+                algo_frame_count = 0
+                algo_fps_start = now
+                
+            await websocket.send_json({
+                "frame_id": frame_id,
+                "timestamp_ms": round(time.time() * 1000),
+                "vehicle_count": len(detections),
+                "detections": detections,
+                "infer_cost_ms": round(infer_cost_ms, 1)
+            })
+            
+            await asyncio.sleep(0.001) 
+            
+    except WebSocketDisconnect:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] 🔌 前端断开连接: {client_ip}")
+    except Exception as e:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] ❌ WebSocket 异常: {e}")
+    finally:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] 🛑 释放视频流资源。")
+        cap.release()

@@ -1,57 +1,31 @@
 package com.example.tunnel.controller;
 
-import com.example.tunnel.dto.AlgorithmRequest;
-import com.example.tunnel.dto.FrameDetectResult;
-import com.example.tunnel.service.AlgorithmClientService;
 import com.example.tunnel.service.ResultDispatchService;
-import com.example.tunnel.service.StreamPullingService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @RestController
 @RequestMapping("/api/stream")
-@CrossOrigin(origins = "*") // 允许前端 Vite(localhost:5173) 跨域调用
+@CrossOrigin(origins = "*") 
 public class StreamSimulationController {
 
-    private final StreamPullingService streamPullingService;
-    private final AlgorithmClientService algorithmClientService;
     private final ResultDispatchService resultDispatchService;
-    
-    // 模拟统一递增的帧序号
-    private final AtomicInteger frameCounter = new AtomicInteger(1);
 
-    public StreamSimulationController(StreamPullingService streamPullingService,
-                                      AlgorithmClientService algorithmClientService,
-                                      ResultDispatchService resultDispatchService) {
-        this.streamPullingService = streamPullingService;
-        this.algorithmClientService = algorithmClientService;
+    public StreamSimulationController(ResultDispatchService resultDispatchService) {
         this.resultDispatchService = resultDispatchService;
     }
 
     /**
-     * 联调专用接口：触发生命周期
-     * 传入体长这样: {"imagePath": "F:\\workspace\\graduation_project\\algorithm\\yolov5\\data\\images\\bus.jpg"}
+     * 新架构：Java 仅作为事件中台
+     * 接收 Python 算法端发现异常（如逆行、停车、事故等）的 HTTP 推送，并负责持久化或大屏预警。
+     * 日常的高频密集画框工作已彻底剥离给 WebSocket 和流媒体服务器直连前端。
      */
-    @PostMapping("/mock-frame")
-    public FrameDetectResult processMockFrame(@RequestBody Map<String, String> payload) {
-        String mockImagePath = payload.get("imagePath");
-
-        // 1. [模拟] 流媒体抽帧，拿到本地临时文件路径
-        String framePath = streamPullingService.pullFrame(mockImagePath);
-
-        // 2. 将抽帧文件发往 Python 端去跑 YOLOv5
-        AlgorithmRequest request = new AlgorithmRequest();
-        request.setFrame_id(frameCounter.getAndIncrement());
-        request.setImage_path(framePath);
-        
-        FrameDetectResult result = algorithmClientService.infer(request);
-
-        // 3. 拿到结果后进行业务落盘与推流前台广播
-        resultDispatchService.dispatch(result);
-
-        // 将最终结果直接 Response 返给调用方方便咱们观阅
-        return result;
+    @PostMapping("/events")
+    public String receiveTrafficEvent(@RequestBody Map<String, Object> eventPayload) {
+        System.out.println("[Traffic Event] 收到算法端事件报警: " + eventPayload);
+        // TODO: 1. 存入 MySQL 数据库，记录告警时间、坐标、车辆类型
+        // TODO: 2. 如果是严重事故，通过 WebSocket (Java版) 强制广播给前端弹出刺耳警报
+        return "Event recorded successfully";
     }
 }
