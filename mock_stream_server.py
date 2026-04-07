@@ -21,7 +21,7 @@ latest_frame = None
 
 # >>> 在这里直接控制模拟摄像头的物理推流帧率 <<<
 # 实际安防工业界，为了节省带宽，摄像头默认往往就是 10~15 FPS
-TARGET_FPS = 15.0  
+TARGET_FPS = 30
 
 def capture_video():
     """
@@ -29,8 +29,9 @@ def capture_video():
     负责按照真实帧率将视频解码到内存池 `latest_frame` 中
     """
     global latest_frame
-    cap = cv2.VideoCapture("mock-video.mp4")
+    cap = cv2.VideoCapture("mock-video-0.mp4")
     original_fps = cap.get(cv2.CAP_PROP_FPS)
+    print("视频原生帧率：", original_fps)
     if original_fps == 0: original_fps = 30.0
     
     # 计算为了保持 1x 倍速播放，读 1 帧画面需要“抽掉”并抛弃多少原始帧
