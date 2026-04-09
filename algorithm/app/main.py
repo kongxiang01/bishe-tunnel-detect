@@ -19,7 +19,7 @@ print("Loading YOLOv5 model...")
 # 获取 main.py 的绝对路径所在的目录的上一级目录（即 algorithm/）
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 YOLO_DIR = os.path.join(BASE_DIR, "yolov5")
-MODEL_PATH = os.path.join(BASE_DIR, "tunnel_baseline.pt") # <--- 这里修改为你自己训练出来的最优权重
+MODEL_PATH = os.path.join(BASE_DIR, "SimAM+SIoU+BiFPN.pt") # <--- 这里修改为你自己训练出来的最优权重
 
 # 使用基于文件位置计算出的绝对路径进行加载
 model = torch.hub.load(YOLO_DIR, 'custom', path=MODEL_PATH, source='local')
