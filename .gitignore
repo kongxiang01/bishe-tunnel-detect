@@ -24,3 +24,7 @@ Thumbs.db
 __pycache__/
 *.py[cod]
 *$py.class
+
+claude-code-输出
+*.pdf
+.claude
