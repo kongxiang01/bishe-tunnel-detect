@@ -1,9 +1,11 @@
 import os
+import sys
 import cv2
 import torch
 import asyncio
 import time
 import warnings
+import numpy as np
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
@@ -21,10 +23,26 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 YOLO_DIR = os.path.join(BASE_DIR, "yolov5")
 MODEL_PATH = os.path.join(BASE_DIR, "SimAM+SIoU+BiFPN.pt") # <--- 这里修改为你自己训练出来的最优权重
 
+# 添加 ByteTrack 路径（在 BASE_DIR 定义后）
+sys.path.append(os.path.join(BASE_DIR, "ByteTrack"))
+sys.path.append(os.path.join(BASE_DIR, "yolov5"))
+from yolox.tracker.byte_tracker import BYTETracker
+
 # 使用基于文件位置计算出的绝对路径进行加载
 model = torch.hub.load(YOLO_DIR, 'custom', path=MODEL_PATH, source='local')
 print(f"当前模型设备：{next(model.parameters()).device}")
 model.conf = 0.5  # 置信度阈值
+
+# 初始化 ByteTrack
+class ByteTrackArgs:
+    track_thresh = 0.5
+    track_buffer = 30
+    match_thresh = 0.8
+    mot20 = False
+
+byte_tracker = BYTETracker(args=ByteTrackArgs(), frame_rate=30)
+byte_tracker.low_thresh = 0.2
+print("ByteTrack 初始化完成")
 
 @app.get("/health")
 def health():
@@ -81,13 +99,49 @@ async def websocket_endpoint(websocket: WebSocket):
             infer_start = time.time()
             results = model(frame)
             infer_cost_ms = (time.time() - infer_start) * 1000
-            
+
+            # ByteTrack 输入格式: [x1, y1, x2, y2, score, cls]
+            raw_dets = results.xyxy[0].tolist()
+            if len(raw_dets) > 0:
+                # Yolov5 结果组装成 N x 5 矩阵 (x1, y1, x2, y2, score)
+                output_results = np.array([[d[0], d[1], d[2], d[3], d[4]] for d in raw_dets], dtype=np.float64)
+                
+                # frame 的宽高
+                img_h, img_w = frame.shape[:2]
+                img_info = [img_h, img_w]
+                img_size = [img_h, img_w]  # 由于 YOLOv5 导出的也是原图尺度的 box，所以传跟 info 一直保持 scale=1 即可
+                
+                # 更新 ByteTrack
+                tracked_tracks = byte_tracker.update(output_results, img_info, img_size)
+            else:
+                tracked_tracks = byte_tracker.update(np.empty((0, 5)), [frame.shape[0], frame.shape[1]], [frame.shape[0], frame.shape[1]])
+
+            # 通过 IoU 匹配为每个 track 分配 cls_id
             detections = []
-            for *box, conf, cls in results.xyxy[0].tolist():
+            for track in tracked_tracks:
+                track_tlbr = track.tlbr
+                # 找到与当前 track IoU 最大的原始检测
+                max_iou = 0
+                best_cls_id = 0
+                for d in raw_dets:
+                    det_tlbr = [d[0], d[1], d[2], d[3]]
+                    # 计算 IoU
+                    inter_x1 = max(track_tlbr[0], det_tlbr[0])
+                    inter_y1 = max(track_tlbr[1], det_tlbr[1])
+                    inter_x2 = min(track_tlbr[2], det_tlbr[2])
+                    inter_y2 = min(track_tlbr[3], det_tlbr[3])
+                    inter_area = max(0, inter_x2 - inter_x1) * max(0, inter_y2 - inter_y1)
+                    track_area = (track_tlbr[2] - track_tlbr[0]) * (track_tlbr[3] - track_tlbr[1])
+                    det_area = (det_tlbr[2] - det_tlbr[0]) * (det_tlbr[3] - det_tlbr[1])
+                    iou = inter_area / (track_area + det_area - inter_area + 1e-6)
+                    if iou > max_iou:
+                        max_iou = iou
+                        best_cls_id = int(d[5])
                 detections.append({
-                    "class_name": model.names[int(cls)],
-                    "confidence": round(conf, 3),
-                    "bbox": [round(x, 1) for x in box]
+                    "class_name": model.names[best_cls_id],
+                    "confidence": round(track.score, 3),
+                    "bbox": [round(x, 1) for x in track_tlbr],
+                    "track_id": track.track_id
                 })
             
             # --- 周期性日志输出 (每秒输出1次) ---

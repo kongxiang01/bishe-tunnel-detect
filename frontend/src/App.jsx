@@ -100,7 +100,8 @@ export default function App() {
       
       ctx.fillStyle = '#ffffff';
       ctx.font = '20px sans-serif';
-      ctx.fillText(`${det.class_name} ${(det.confidence * 100).toFixed(1)}%`, x1 + 5, y1 - 6);
+      const trackIdText = det.track_id !== undefined ? ` ID:${det.track_id}` : '';
+      ctx.fillText(`${det.class_name} ${(det.confidence * 100).toFixed(1)}%${trackIdText}`, x1 + 5, y1 - 6);
     });
   };
 

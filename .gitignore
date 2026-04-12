@@ -28,3 +28,29 @@ __pycache__/
 claude-code-输出
 *.pdf
 .claude
+# Python environment
+venv/
+.env
+
+# Python packaging
+*.egg-info/
+dist/
+build/
+
+# AI/ML model files
+*.pkl
+*.npy
+*.pth
+*.onnx
+*.engine
+
+# ByteTrack
+algorithm/ByteTrack/assets/
+algorithm/ByteTrack/datasets/
+algorithm/ByteTrack/videos/
+algorithm/ByteTrack/YOLOX_outputs/
+algorithm/ByteTrack/pretrained/
+algorithm/ByteTrack/build/
+algorithm/ByteTrack/dist/
+algorithm/ByteTrack/*.egg-info/
+algorithm/ByteTrack/__pycache__/
