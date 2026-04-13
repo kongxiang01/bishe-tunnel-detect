@@ -2,8 +2,20 @@ server:
   port: 8080
 
 spring:
+  application:
+    name: tunnel-detect-backend
+  datasource:
+    url: jdbc:mysql://localhost:3306/tunnel_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+    username: root
+    password: ybtttt
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
   jackson:
     time-zone: Asia/Shanghai
-
-# For MVP scaffold, database tables are optional at startup.
-# API currently returns in-memory demo data for easy first run.

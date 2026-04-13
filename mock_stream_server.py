@@ -29,7 +29,7 @@ def capture_video():
     负责按照真实帧率将视频解码到内存池 `latest_frame` 中
     """
     global latest_frame
-    cap = cv2.VideoCapture("mock-video-0.mp4")
+    cap = cv2.VideoCapture("隧道合集2.mp4")
     original_fps = cap.get(cv2.CAP_PROP_FPS)
     print("视频原生帧率：", original_fps)
     if original_fps == 0: original_fps = 30.0
