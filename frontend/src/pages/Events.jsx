@@ -60,7 +60,7 @@ export default function Events() {
   const fetchStatistics = useCallback(async () => {
     try {
       const res = await axios.get(`${API_BASE}/events/statistics`, { headers: getAuthHeaders() });
-      setStatistics(res.data);
+      setStatistics(res.data.data || { total: 0, pendingCount: 0, resolvedCount: 0 });
     } catch (error) {
       console.error('获取统计数据失败:', error);
     }
@@ -121,9 +121,10 @@ export default function Events() {
       });
 
       // Handle both array and paginated response
-      const data = Array.isArray(res.data) ? res.data : (res.data.content || res.data.list || []);
-      const total = res.data.totalElements || res.data.total || data.length;
-      const totalPages = res.data.totalPages || Math.ceil(total / PAGE_SIZE);
+      const apiData = res.data.data || {};
+      const data = Array.isArray(apiData) ? apiData : (apiData.content || apiData.list || []);
+      const total = apiData.totalElements || apiData.total || data.length;
+      const totalPages = apiData.totalPages || Math.ceil(total / PAGE_SIZE);
 
       setEvents(data);
       setPagination({ page, size: PAGE_SIZE, total, totalPages });

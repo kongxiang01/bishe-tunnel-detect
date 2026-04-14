@@ -3,6 +3,7 @@ package com.example.tunnel.controller;
 import com.example.tunnel.annotation.Loggable;
 import com.example.tunnel.entity.SystemSetting;
 import com.example.tunnel.repository.SystemSettingRepository;
+import com.example.tunnel.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,20 +19,20 @@ public class SystemSettingController {
     private final SystemSettingRepository systemSettingRepository;
 
     @GetMapping
-    public ResponseEntity<List<SystemSetting>> getAllSettings() {
-        return ResponseEntity.ok(systemSettingRepository.findAll());
+    public ResponseEntity<ApiResponse<List<SystemSetting>>> getAllSettings() {
+        return ResponseEntity.ok(ApiResponse.success(systemSettingRepository.findAll()));
     }
 
     @Loggable
     @PutMapping
-    public ResponseEntity<List<SystemSetting>> updateSettings(@RequestBody List<SystemSetting> settings) {
+    public ResponseEntity<ApiResponse<List<SystemSetting>>> updateSettings(@RequestBody List<SystemSetting> settings) {
         settings.forEach(setting -> {
             systemSettingRepository.findBySettingKey(setting.getSettingKey()).ifPresent(existing -> {
                 existing.setSettingValue(setting.getSettingValue());
                 systemSettingRepository.save(existing);
             });
         });
-        return ResponseEntity.ok(systemSettingRepository.findAll());
+        return ResponseEntity.ok(ApiResponse.success(systemSettingRepository.findAll()));
     }
 
     /**
@@ -41,12 +42,12 @@ public class SystemSettingController {
      */
     @Loggable
     @PostMapping
-    public ResponseEntity<SystemSetting> createSetting(@RequestBody SystemSetting setting) {
+    public ResponseEntity<ApiResponse<SystemSetting>> createSetting(@RequestBody SystemSetting setting) {
         // 检查键是否已存在
         if (systemSettingRepository.findBySettingKey(setting.getSettingKey()).isPresent()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(409, "Setting key already exists"));
         }
         SystemSetting saved = systemSettingRepository.save(setting);
-        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(saved));
     }
 }

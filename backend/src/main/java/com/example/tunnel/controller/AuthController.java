@@ -1,6 +1,7 @@
 package com.example.tunnel.controller;
 
 import com.example.tunnel.config.AuthInterceptor;
+import com.example.tunnel.dto.ApiResponse;
 import com.example.tunnel.dto.LoginRequest;
 import com.example.tunnel.dto.LoginResponse;
 import com.example.tunnel.entity.User;
@@ -25,7 +26,7 @@ public class AuthController {
     private UserRepository userRepository;
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody LoginRequest request) {
         // 从真实数据库中通过用户名查询用户
         Optional<User> userOpt = userRepository.findByUsername(request.getUsername());
 
@@ -37,35 +38,35 @@ public class AuthController {
             // Store token in user record
             user.setToken(token);
             userRepository.save(user);
-            return ResponseEntity.ok(new LoginResponse(token, user.getUsername(), "登录成功"));
+            return ResponseEntity.ok(ApiResponse.success("登录成功", new LoginResponse(token, user.getUsername(), "登录成功")));
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new LoginResponse(null, null, "用户名或密码错误"));
+                    .body(ApiResponse.error(401, "用户名或密码错误"));
         }
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser(HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getCurrentUser(HttpServletRequest request) {
         Long userId = (Long) request.getAttribute(AuthInterceptor.USER_ID_ATTR);
         String username = (String) request.getAttribute(AuthInterceptor.USERNAME_ATTR);
         String role = (String) request.getAttribute(AuthInterceptor.USER_ROLE_ATTR);
 
         if (userId == null || username == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "未认证"));
+                    .body(ApiResponse.error(401, "未认证"));
         }
 
-        return ResponseEntity.ok(Map.of(
+        return ResponseEntity.ok(ApiResponse.success(Map.of(
                 "id", userId,
                 "username", username,
                 "role", role != null ? role : "USER"
-        ));
+        )));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request) {
         // For MVP, this is a no-op - just return success
         // In production, would invalidate the token
-        return ResponseEntity.ok(Map.of("message", "登出成功"));
+        return ResponseEntity.ok(ApiResponse.success("登出成功", null));
     }
 }

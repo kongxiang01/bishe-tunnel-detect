@@ -3,6 +3,7 @@ package com.example.tunnel.controller;
 import com.example.tunnel.entity.SystemLog;
 import com.example.tunnel.repository.SystemLogRepository;
 import lombok.RequiredArgsConstructor;
+import com.example.tunnel.dto.ApiResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -17,7 +18,7 @@ public class SystemLogController {
     private final SystemLogRepository systemLogRepository;
 
     @GetMapping
-    public ResponseEntity<Page<SystemLog>> getLogs(
+    public ResponseEntity<ApiResponse<Page<SystemLog>>> getLogs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String level) {
@@ -25,8 +26,8 @@ public class SystemLogController {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createTime"));
 
         if (level != null && !level.isEmpty()) {
-            return ResponseEntity.ok(systemLogRepository.findByLevel(level.toUpperCase(), pageRequest));
+            return ResponseEntity.ok(ApiResponse.success(systemLogRepository.findByLevel(level.toUpperCase(), pageRequest)));
         }
-        return ResponseEntity.ok(systemLogRepository.findAll(pageRequest));
+        return ResponseEntity.ok(ApiResponse.success(systemLogRepository.findAll(pageRequest)));
     }
 }

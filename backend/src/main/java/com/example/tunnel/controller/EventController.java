@@ -3,6 +3,7 @@ package com.example.tunnel.controller;
 import com.example.tunnel.annotation.Loggable;
 import com.example.tunnel.entity.DetectEvent;
 import com.example.tunnel.repository.DetectEventRepository;
+import com.example.tunnel.dto.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -38,7 +39,7 @@ public class EventController {
      * 支持新字段：deviceId, deviceName, severity, status, plate
      */
     @PostMapping("/upload")
-    public ResponseEntity<String> uploadEvent(@RequestBody EventUploadRequest request) {
+    public ResponseEntity<ApiResponse<String>> uploadEvent(@RequestBody EventUploadRequest request) {
         DetectEvent event = new DetectEvent();
         event.setEventType(request.getEventType());
         event.setDescription(request.getDescription());
@@ -64,7 +65,7 @@ public class EventController {
         }
 
         detectEventRepository.save(event);
-        return ResponseEntity.ok("Event uploaded successfully");
+        return ResponseEntity.ok(ApiResponse.success("Event uploaded successfully"));
     }
 
     /**
@@ -79,7 +80,7 @@ public class EventController {
      * @param endTime 结束时间（格式：yyyy-MM-dd HH:mm:ss）
      */
     @GetMapping("/list")
-    public ResponseEntity<Page<DetectEvent>> listEvents(
+    public ResponseEntity<ApiResponse<Page<DetectEvent>>> listEvents(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String type,
@@ -125,7 +126,7 @@ public class EventController {
         // 执行分页查询
         Page<DetectEvent> events = detectEventRepository.findAll(spec, pageable);
 
-        return ResponseEntity.ok(events);
+        return ResponseEntity.ok(ApiResponse.success(events));
     }
 
     /**
@@ -136,7 +137,7 @@ public class EventController {
      */
     @Loggable
     @PutMapping("/{id}/status")
-    public ResponseEntity<?> updateEventStatus(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateEventStatus(
             @PathVariable Long id,
             @RequestBody StatusUpdateRequest request) {
 
@@ -150,18 +151,17 @@ public class EventController {
         String newStatus = request.getStatus();
         if (newStatus == null || (!newStatus.equals("PENDING") && !newStatus.equals("RESOLVED"))) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("error", "无效的状态值，只支持 PENDING 或 RESOLVED"));
+                    .body(ApiResponse.error(400, "无效的状态值，只支持 PENDING 或 RESOLVED"));
         }
 
         DetectEvent event = eventOpt.get();
         event.setStatus(newStatus);
         detectEventRepository.save(event);
 
-        return ResponseEntity.ok(Map.of(
+        return ResponseEntity.ok(ApiResponse.success("状态更新成功", Map.of(
                 "id", event.getId(),
-                "status", event.getStatus(),
-                "message", "状态更新成功"
-        ));
+                "status", event.getStatus()
+        )));
     }
 
     /**
@@ -169,21 +169,21 @@ public class EventController {
      * 返回前端需要的格式: {total, pendingCount, resolvedCount}
      */
     @GetMapping("/statistics")
-    public ResponseEntity<Map<String, Object>> getEventStatistics() {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getEventStatistics() {
         Map<String, Object> result = new HashMap<>();
         result.put("total", detectEventRepository.count());
         result.put("pendingCount", detectEventRepository.countByStatus("PENDING"));
         result.put("resolvedCount", detectEventRepository.countByStatus("RESOLVED"));
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     /**
      * 获取待处理事件数量
      */
     @GetMapping("/pending/count")
-    public ResponseEntity<Long> getPendingEventCount() {
+    public ResponseEntity<ApiResponse<Long>> getPendingEventCount() {
         long count = detectEventRepository.countByStatus("PENDING");
-        return ResponseEntity.ok(count);
+        return ResponseEntity.ok(ApiResponse.success(count));
     }
 }
 

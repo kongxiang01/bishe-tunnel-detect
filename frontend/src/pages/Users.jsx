@@ -24,7 +24,7 @@ function Users() {
       setLoading(true);
       setError(null);
       const response = await axios.get(API_BASE, { headers: getAuthHeaders() });
-      setUsers(response.data);
+      setUsers(response.data.data || []);
     } catch (err) {
       console.error('Failed to fetch users:', err);
       setError('获取用户列表失败');
@@ -85,7 +85,7 @@ function Users() {
     try {
       if (modalMode === 'add') {
         const response = await axios.post(API_BASE, formData, { headers: getAuthHeaders() });
-        setUsers([...users, { ...response.data, status: 'active', lastLogin: '-' }]);
+        setUsers([...users, { ...response.data.data, status: 'active', lastLogin: '-' }]);
       } else {
         const payload = { username: formData.username, role: formData.role };
         if (formData.password) {

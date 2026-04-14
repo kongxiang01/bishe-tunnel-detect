@@ -1,6 +1,7 @@
 package com.example.tunnel.controller;
 
 import java.util.Map;
+import com.example.tunnel.dto.ApiResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 public class HealthController {
 
     @GetMapping
-    public Map<String, String> health() {
-        return Map.of("status", "online");
+    public ApiResponse<Map<String, String>> health() {
+        return ApiResponse.success(Map.of("status", "online"));
     }
 }

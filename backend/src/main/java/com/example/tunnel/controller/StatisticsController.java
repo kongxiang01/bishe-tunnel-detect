@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.example.tunnel.dto.ApiResponse;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -22,7 +23,7 @@ public class StatisticsController {
     private final DeviceRepository deviceRepository;
 
     @GetMapping("/events")
-    public ResponseEntity<Map<String, Object>> getEventStatistics() {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getEventStatistics() {
         // MVP: 简单统计所有事件记录按类型分类的数量
         List<Object[]> stats = detectEventRepository.countEventsByType();
         Map<String, Long> typeCountMap = new HashMap<>();
@@ -34,7 +35,7 @@ public class StatisticsController {
         result.put("eventCounts", typeCountMap);
         result.put("totalEvents", detectEventRepository.count());
 
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     /**
@@ -45,7 +46,7 @@ public class StatisticsController {
      * - hourlyData: 按小时聚合车辆通过数量
      */
     @GetMapping("/traffic")
-    public ResponseEntity<Map<String, Object>> getTrafficStatistics() {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getTrafficStatistics() {
         Map<String, Object> result = new HashMap<>();
 
         // TODO: 集成真实交通流量统计
@@ -75,7 +76,7 @@ public class StatisticsController {
         }
         result.put("hourlyData", hourlyData);
 
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     /**
@@ -83,7 +84,7 @@ public class StatisticsController {
      * 返回各设备的告警事件数量和最后事件时间
      */
     @GetMapping("/devices")
-    public ResponseEntity<Map<String, Object>> getDeviceStatistics() {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getDeviceStatistics() {
         Map<String, Object> result = new HashMap<>();
 
         List<Device> allDevices = deviceRepository.findAll();
@@ -131,6 +132,6 @@ public class StatisticsController {
 
         result.put("deviceStats", deviceStats);
 
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 }

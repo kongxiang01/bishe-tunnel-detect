@@ -29,7 +29,7 @@ function Logs() {
         params: { page, size: PAGE_SIZE },
         headers: authHeader(),
       });
-      const data = res.data;
+      const data = res.data.data || {};
       setLogs(data.content || []);
       setTotalPages(data.totalPages || 0);
       setTotalElements(data.totalElements || 0);

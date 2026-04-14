@@ -22,7 +22,7 @@ export default function Settings() {
       const res = await axios.get('/api/v1/settings', {
         headers: authHeader(),
       });
-      const data = res.data;
+      const data = res.data.data || [];
       setSettings(data);
       // Initialise edit buffer with current values
       const initial = {};

@@ -97,7 +97,7 @@ export default function MainLayout() {
     }
 
     axios.get(API_BASE + '/health')
-      .then((r) => setHealth(r.data.status || 'unknown'))
+      .then((r) => setHealth(r.data?.data?.status || r.data?.status || 'unknown'))
       .catch(() => setHealth('offline'));
   }, []);
 

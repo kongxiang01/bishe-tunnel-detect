@@ -1,15 +1,14 @@
 package com.example.tunnel.controller;
 
 import com.example.tunnel.annotation.Loggable;
+import com.example.tunnel.dto.ApiResponse;
 import com.example.tunnel.entity.Device;
 import com.example.tunnel.repository.DeviceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -21,32 +20,28 @@ public class DeviceController {
     private DeviceRepository deviceRepository;
 
     @GetMapping("/list")
-    public ResponseEntity<?> listDevices() {
+    public ResponseEntity<ApiResponse<List<Device>>> listDevices() {
         List<Device> devices = deviceRepository.findAll();
-        Map<String, Object> response = new HashMap<>();
-        response.put("code", 200);
-        response.put("message", "Success");
-        response.put("data", devices);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(devices));
     }
 
     @Loggable
     @PostMapping("/add")
-    public ResponseEntity<?> addDevice(@RequestBody Device device) {
+    public ResponseEntity<ApiResponse<Device>> addDevice(@RequestBody Device device) {
         if (deviceRepository.findByDeviceCode(device.getDeviceCode()).isPresent()) {
-            return ResponseEntity.badRequest().body(Map.of("code", 400, "message", "Device code already exists"));
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "Device code already exists"));
         }
         device.setStatus("ONLINE");
         Device saved = deviceRepository.save(device);
-        return ResponseEntity.ok(Map.of("code", 200, "message", "Device added", "data", saved));
+        return ResponseEntity.ok(ApiResponse.success("Device added", saved));
     }
     
     @Loggable
     @PutMapping("/update/{id}")
-    public ResponseEntity<?> updateDevice(@PathVariable Long id, @RequestBody Device updatedDevice) {
+    public ResponseEntity<ApiResponse<Void>> updateDevice(@PathVariable Long id, @RequestBody Device updatedDevice) {
         Optional<Device> optionalDevice = deviceRepository.findById(id);
         if (!optionalDevice.isPresent()) {
-            return ResponseEntity.badRequest().body(Map.of("code", 404, "message", "Device not found"));
+            return ResponseEntity.badRequest().body(ApiResponse.error(404, "Device not found"));
         }
         
         Device device = optionalDevice.get();
@@ -58,16 +53,16 @@ public class DeviceController {
         if (updatedDevice.getFps() != null) device.setFps(updatedDevice.getFps());
         
         deviceRepository.save(device);
-        return ResponseEntity.ok(Map.of("code", 200, "message", "Device updated"));
+        return ResponseEntity.ok(ApiResponse.success("Device updated", null));
     }
 
     @Loggable
     @DeleteMapping("/delete/{id}")
-    public ResponseEntity<?> deleteDevice(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteDevice(@PathVariable Long id) {
         if (!deviceRepository.existsById(id)) {
-            return ResponseEntity.badRequest().body(Map.of("code", 404, "message", "Device not found"));
+            return ResponseEntity.badRequest().body(ApiResponse.error(404, "Device not found"));
         }
         deviceRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("code", 200, "message", "Device deleted"));
+        return ResponseEntity.ok(ApiResponse.success("Device deleted", null));
     }
 }

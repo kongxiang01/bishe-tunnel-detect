@@ -26,7 +26,7 @@ export default function Monitor() {
 
     // 获取健康状态
     axios.get(API_BASE + '/health')
-      .then((r) => setHealth(r.data.status || 'unknown'))
+      .then((r) => setHealth(r.data?.data?.status || r.data?.status || 'unknown'))
       .catch(() => setHealth('offline'));
 
     // 获取设备列表
@@ -49,10 +49,11 @@ export default function Monitor() {
       axios.get(API_BASE + '/events/list')
         .then(res => {
           // 后端返回 Page 对象，需要取 content 字段
-          if (res.data && res.data.content) {
-            setEvents(res.data.content);
-          } else if (Array.isArray(res.data)) {
-            setEvents(res.data);
+          const apiData = res.data.data || {};
+          if (apiData.content) {
+            setEvents(apiData.content);
+          } else if (Array.isArray(apiData)) {
+            setEvents(apiData);
           }
         })
         .catch(err => {

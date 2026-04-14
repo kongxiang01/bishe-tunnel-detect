@@ -14,9 +14,9 @@ export default function Login() {
     try {
       // 这里的 /api 由 vite proxy 转发给 8080
       const res = await axios.post('/api/auth/login', { username, password });
-      if (res.data.token) {
-        localStorage.setItem('token', res.data.token);
-        localStorage.setItem('username', res.data.username);
+      if (res.data.code === 200 && res.data.data?.token) {
+        localStorage.setItem('token', res.data.data.token);
+        localStorage.setItem('username', res.data.data.username);
         // 登录成功，跳转到监控大屏
         navigate('/monitor');
       }

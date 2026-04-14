@@ -262,7 +262,7 @@ export default function Statistics() {
     axios
       .get(`${STATISTICS_API}/traffic`)
       .then(res => {
-        setTrafficData(res.data);
+        setTrafficData(res.data.data || null);
       })
       .catch(err => {
         console.error('Failed to fetch traffic:', err);
@@ -278,9 +278,9 @@ export default function Statistics() {
     axios
       .get(`${STATISTICS_API}/events`)
       .then(res => {
-        const { eventCounts, totalEvents: total } = res.data;
+        const { eventCounts, totalEvents: total } = res.data.data || {};
         setTotalEvents(total);
-        setEventDistribution(buildDistribution(eventCounts, total));
+        setEventDistribution(buildDistribution(eventCounts || {}, total || 0));
       })
       .catch(err => {
         console.error('Failed to fetch events:', err);
@@ -296,7 +296,7 @@ export default function Statistics() {
     axios
       .get(`${STATISTICS_API}/devices`)
       .then(res => {
-        setDeviceStats(res.data.deviceStats || []);
+        setDeviceStats(res.data.data?.deviceStats || []);
       })
       .catch(err => {
         console.error('Failed to fetch devices:', err);
