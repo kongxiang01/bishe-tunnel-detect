@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
-// Mock data for 24-hour traffic trend
+const STATISTICS_API = '/api/v1/statistics';
+
+// Mock data for 24-hour traffic trend (no API yet)
 const hourlyData = [
   { hour: 0, count: 45 },
   { hour: 1, count: 28 },
@@ -28,15 +31,7 @@ const hourlyData = [
   { hour: 23, count: 67 },
 ];
 
-// Mock data for event type distribution
-const eventDistribution = [
-  { type: '超速', percentage: 45, color: '#ef4444' },
-  { type: '违停', percentage: 30, color: '#f59e0b' },
-  { type: '逆行', percentage: 15, color: '#3b82f6' },
-  { type: '其他', percentage: 10, color: '#64748b' },
-];
-
-// Mock data for recent events summary
+// Mock data for recent events summary (no API yet)
 const deviceSummary = [
   { device: '摄像头A-入口', eventsToday: 8, topEvent: '超速' },
   { device: '摄像头B-出口', eventsToday: 6, topEvent: '违停' },
@@ -44,7 +39,41 @@ const deviceSummary = [
   { device: '摄像头D-隧道南', eventsToday: 4, topEvent: '逆行' },
 ];
 
-// Stat card component
+// Known event type label and color mapping
+const EVENT_TYPE_CONFIG = {
+  accident:        { label: '事故',   color: '#ef4444' },
+  fire:            { label: '火灾',   color: '#f97316' },
+  congestion:      { label: '拥堵',   color: '#f59e0b' },
+  speeding:        { label: '超速',   color: '#ef4444' },
+  illegal_parking: { label: '违停',   color: '#f59e0b' },
+  wrong_way:       { label: '逆行',   color: '#3b82f6' },
+  pedestrian:      { label: '行人',   color: '#8b5cf6' },
+  other:           { label: '其他',   color: '#64748b' },
+};
+
+const FALLBACK_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#64748b', '#ec4899', '#f43f5e'];
+
+/**
+ * Transforms raw eventCounts from the API into the distribution array
+ * used by EventPieChart. Percentages are rounded to whole numbers.
+ */
+function buildDistribution(eventCounts, totalEvents) {
+  if (!eventCounts || totalEvents === 0) return [];
+  return Object.entries(eventCounts).map(([type, count], index) => {
+    const config = EVENT_TYPE_CONFIG[type];
+    return {
+      type:       config ? config.label : type,
+      count,
+      percentage: Math.round((count / totalEvents) * 100),
+      color:      config ? config.color : FALLBACK_COLORS[index % FALLBACK_COLORS.length],
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
 function StatCard({ icon, title, value, unit, trend, trendValue }) {
   const isPositive = trend === 'up';
   return (
@@ -65,7 +94,6 @@ function StatCard({ icon, title, value, unit, trend, trendValue }) {
   );
 }
 
-// Line chart component for 24-hour traffic
 function TrafficChart() {
   const maxCount = Math.max(...hourlyData.map(d => d.count));
   const chartWidth = 100;
@@ -83,7 +111,6 @@ function TrafficChart() {
     <div className="chart-container">
       <div className="chart-title">24小时车流量趋势</div>
       <svg viewBox={`0 0 ${chartWidth} ${chartHeight + 10}`} className="line-chart">
-        {/* Grid lines */}
         {[0, 0.25, 0.5, 0.75, 1].map(ratio => (
           <line
             key={ratio}
@@ -95,9 +122,7 @@ function TrafficChart() {
             strokeWidth="0.3"
           />
         ))}
-        {/* Line */}
         <path d={pathD} fill="none" stroke="var(--accent-primary)" strokeWidth="0.8" />
-        {/* Points */}
         {points.map((p, i) => (
           <circle key={i} cx={p.x} cy={p.y} r="0.8" fill="var(--accent-primary)" />
         ))}
@@ -113,40 +138,68 @@ function TrafficChart() {
   );
 }
 
-// Pie chart component for event distribution
-function EventPieChart() {
+/**
+ * Pie chart driven by the `distribution` prop (array of
+ * { type, percentage, color }). Falls back to a placeholder
+ * when the array is empty.
+ */
+function EventPieChart({ distribution, loading, error }) {
   const radius = 20;
   const centerX = 25;
   const centerY = 22;
-  let currentAngle = -90;
 
-  const paths = eventDistribution.map((item, index) => {
-    const angle = (item.percentage / 100) * 360;
-    const startAngle = currentAngle;
-    const endAngle = currentAngle + angle;
-    currentAngle = endAngle;
+  const renderBody = () => {
+    if (loading) {
+      return (
+        <div className="pie-loading">
+          <span className="pie-loading-text">加载中...</span>
+        </div>
+      );
+    }
 
-    const startRad = (startAngle * Math.PI) / 180;
-    const endRad = (endAngle * Math.PI) / 180;
+    if (error) {
+      return (
+        <div className="pie-loading">
+          <span className="pie-error-text">数据加载失败</span>
+        </div>
+      );
+    }
 
-    const x1 = centerX + radius * Math.cos(startRad);
-    const y1 = centerY + radius * Math.sin(startRad);
-    const x2 = centerX + radius * Math.cos(endRad);
-    const y2 = centerY + radius * Math.sin(endRad);
+    if (!distribution || distribution.length === 0) {
+      return (
+        <div className="pie-loading">
+          <span className="pie-loading-text">暂无数据</span>
+        </div>
+      );
+    }
 
-    const largeArc = angle > 180 ? 1 : 0;
+    let currentAngle = -90;
+    const paths = distribution.map((item) => {
+      const angle = (item.percentage / 100) * 360;
+      const startAngle = currentAngle;
+      const endAngle = currentAngle + angle;
+      currentAngle = endAngle;
 
-    return {
-      d: `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`,
-      color: item.color,
-      type: item.type,
-      percentage: item.percentage,
-    };
-  });
+      const startRad = (startAngle * Math.PI) / 180;
+      const endRad   = (endAngle   * Math.PI) / 180;
 
-  return (
-    <div className="chart-container">
-      <div className="chart-title">事件类型分布</div>
+      const x1 = centerX + radius * Math.cos(startRad);
+      const y1 = centerY + radius * Math.sin(startRad);
+      const x2 = centerX + radius * Math.cos(endRad);
+      const y2 = centerY + radius * Math.sin(endRad);
+
+      const largeArc = angle > 180 ? 1 : 0;
+
+      return {
+        d:          `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`,
+        color:      item.color,
+        type:       item.type,
+        percentage: item.percentage,
+        count:      item.count,
+      };
+    });
+
+    return (
       <div className="pie-chart-wrapper">
         <svg viewBox="0 0 50 44" className="pie-chart">
           {paths.map((path, i) => (
@@ -154,20 +207,28 @@ function EventPieChart() {
           ))}
         </svg>
         <div className="pie-legend">
-          {eventDistribution.map((item, i) => (
+          {distribution.map((item, i) => (
             <div key={i} className="legend-item">
               <span className="legend-color" style={{ backgroundColor: item.color }}></span>
               <span className="legend-label">{item.type}</span>
-              <span className="legend-value">{item.percentage}%</span>
+              <span className="legend-value">
+                {item.count != null ? `${item.count}次` : `${item.percentage}%`}
+              </span>
             </div>
           ))}
         </div>
       </div>
+    );
+  };
+
+  return (
+    <div className="chart-container">
+      <div className="chart-title">事件类型分布</div>
+      {renderBody()}
     </div>
   );
 }
 
-// Time range button component
 function TimeRangeBtn({ label, active, onClick }) {
   return (
     <button
@@ -179,11 +240,53 @@ function TimeRangeBtn({ label, active, onClick }) {
   );
 }
 
-// Main Statistics page component
+// ---------------------------------------------------------------------------
+// Main page component
+// ---------------------------------------------------------------------------
+
 export default function Statistics() {
   const [timeRange, setTimeRange] = useState('今日');
 
+  // Real data from API
+  const [totalEvents,     setTotalEvents]     = useState(null);
+  const [eventDistribution, setEventDistribution] = useState([]);
+  const [statsLoading,    setStatsLoading]    = useState(true);
+  const [statsError,      setStatsError]      = useState(null);
+
   const timeRanges = ['今日', '本周', '本月', '本年'];
+
+  useEffect(() => {
+    // Set Authorization header from stored token (same pattern as Monitor.jsx)
+    const token = localStorage.getItem('token');
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
+    }
+
+    setStatsLoading(true);
+    setStatsError(null);
+
+    axios
+      .get(`${STATISTICS_API}/events`)
+      .then(res => {
+        const { eventCounts, totalEvents: total } = res.data;
+        setTotalEvents(total);
+        setEventDistribution(buildDistribution(eventCounts, total));
+      })
+      .catch(err => {
+        console.error('Failed to fetch statistics:', err);
+        setStatsError(err.message || '请求失败');
+      })
+      .finally(() => {
+        setStatsLoading(false);
+      });
+  }, []);
+
+  // Display value for the total-events stat card
+  const totalEventsDisplay = statsLoading
+    ? '--'
+    : statsError
+      ? '--'
+      : String(totalEvents ?? '--');
 
   return (
     <div className="page">
@@ -429,6 +532,23 @@ export default function Statistics() {
           color: var(--text-primary);
         }
 
+        .pie-loading {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 140px;
+        }
+
+        .pie-loading-text {
+          font-size: 0.875rem;
+          color: var(--text-muted);
+        }
+
+        .pie-error-text {
+          font-size: 0.875rem;
+          color: var(--accent-danger);
+        }
+
         .table-card {
           background: var(--bg-card);
           border: 1px solid var(--border-default);
@@ -555,6 +675,7 @@ export default function Statistics() {
 
       {/* Stat Cards */}
       <div className="stats-grid">
+        {/* Mock — no traffic API yet */}
         <StatCard
           icon="🚗"
           title="今日车流量"
@@ -563,6 +684,7 @@ export default function Statistics() {
           trend="up"
           trendValue="+12.5%"
         />
+        {/* Mock — no speed API yet */}
         <StatCard
           icon="🚀"
           title="平均车速"
@@ -571,14 +693,16 @@ export default function Statistics() {
           trend="up"
           trendValue="+3.2%"
         />
+        {/* Real data from /api/v1/statistics/events */}
         <StatCard
           icon="⚠️"
           title="事件总数"
-          value="23"
+          value={totalEventsDisplay}
           unit=""
           trend="down"
-          trendValue="-8.3%"
+          trendValue={statsError ? '获取失败' : statsLoading ? '...' : '-8.3%'}
         />
+        {/* Mock — no device online API yet */}
         <StatCard
           icon="📹"
           title="在线设备"
@@ -595,11 +719,16 @@ export default function Statistics() {
           <TrafficChart />
         </div>
         <div className="chart-card">
-          <EventPieChart />
+          {/* Real data from /api/v1/statistics/events */}
+          <EventPieChart
+            distribution={eventDistribution}
+            loading={statsLoading}
+            error={statsError}
+          />
         </div>
       </div>
 
-      {/* Events Summary Table */}
+      {/* Events Summary Table — mock, no API yet */}
       <div className="table-card">
         <div className="table-title">设备事件汇总</div>
         <table className="summary-table">
