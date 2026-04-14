@@ -14,37 +14,59 @@ export default function Monitor() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // 设置 Authorization header
     const token = localStorage.getItem('token');
     if (token) {
       axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
+    } else {
+      // 没有 token，跳转登录
+      navigate('/login');
+      return;
     }
 
+    // 获取健康状态
     axios.get(API_BASE + '/health')
       .then((r) => setHealth(r.data.status || 'unknown'))
       .catch(() => setHealth('offline'));
 
+    // 获取设备列表
     axios.get(API_BASE + '/devices/list')
       .then(res => {
         if (res.data.code === 200 && res.data.data.length > 0) {
           setDevices(res.data.data);
         }
       })
-      .catch(err => console.error('Failed to fetch devices', err));
-  }, []);
+      .catch(err => {
+        console.error('Failed to fetch devices', err);
+        if (err.response?.status === 401) {
+          navigate('/login');
+        }
+      });
+  }, [navigate]);
 
   useEffect(() => {
     const fetchEvents = () => {
       axios.get(API_BASE + '/events/list')
         .then(res => {
-          if (res.data) setEvents(res.data);
+          // 后端返回 Page 对象，需要取 content 字段
+          if (res.data && res.data.content) {
+            setEvents(res.data.content);
+          } else if (Array.isArray(res.data)) {
+            setEvents(res.data);
+          }
         })
-        .catch(err => console.error('Failed to fetch events:', err));
+        .catch(err => {
+          console.error('Failed to fetch events:', err);
+          if (err.response?.status === 401) {
+            navigate('/login');
+          }
+        });
     };
 
     fetchEvents();
     const interval = setInterval(fetchEvents, 2000);
     return () => clearInterval(interval);
-  }, []);
+  }, [navigate]);
 
   const handleCameraEvent = (event) => {
     console.log('Camera event received:', event);
@@ -190,7 +212,7 @@ export default function Monitor() {
                   </div>
                 </div>
                 <div className="event-time">
-                  {new Date(evt.eventTime).toLocaleString()}
+                  {evt.eventTime ? evt.eventTime.replace('T', ' ').split('.')[0] : '-'}
                 </div>
               </div>
             ))

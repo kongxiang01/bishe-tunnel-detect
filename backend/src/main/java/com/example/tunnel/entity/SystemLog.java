@@ -14,13 +14,16 @@ public class SystemLog {
     private Long id;
 
     private String username;
-    
+
     private String action;
-    
+
     private String targetResource;
-    
+
     private String details;
-    
+
+    @Column(length = 20)
+    private String level; // "INFO", "WARN", "ERROR"
+
     private LocalDateTime createTime;
 
     @PrePersist

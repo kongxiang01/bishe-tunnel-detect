@@ -19,9 +19,14 @@ public class SystemLogController {
     @GetMapping
     public ResponseEntity<Page<SystemLog>> getLogs(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String level) {
+
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createTime"));
+
+        if (level != null && !level.isEmpty()) {
+            return ResponseEntity.ok(systemLogRepository.findByLevel(level.toUpperCase(), pageRequest));
+        }
         return ResponseEntity.ok(systemLogRepository.findAll(pageRequest));
     }
 }

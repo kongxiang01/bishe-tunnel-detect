@@ -1,5 +1,6 @@
 package com.example.tunnel.controller;
 
+import com.example.tunnel.annotation.Loggable;
 import com.example.tunnel.entity.User;
 import com.example.tunnel.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,11 +21,13 @@ public class UserController {
         return ResponseEntity.ok(userRepository.findAll());
     }
 
+    @Loggable
     @PostMapping
     public ResponseEntity<User> createUser(@RequestBody User user) {
         return ResponseEntity.ok(userRepository.save(user));
     }
 
+    @Loggable
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User user) {
         return userRepository.findById(id).map(existing -> {
@@ -37,6 +40,7 @@ public class UserController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
+    @Loggable
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         if (!userRepository.existsById(id)) {

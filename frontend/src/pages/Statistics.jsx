@@ -3,101 +3,56 @@ import axios from 'axios';
 
 const STATISTICS_API = '/api/v1/statistics';
 
-// Mock data for 24-hour traffic trend (no API yet)
-const hourlyData = [
-  { hour: 0, count: 45 },
-  { hour: 1, count: 28 },
-  { hour: 2, count: 22 },
-  { hour: 3, count: 18 },
-  { hour: 4, count: 25 },
-  { hour: 5, count: 68 },
-  { hour: 6, count: 156 },
-  { hour: 7, count: 289 },
-  { hour: 8, count: 342 },
-  { hour: 9, count: 267 },
-  { hour: 10, count: 198 },
-  { hour: 11, count: 234 },
-  { hour: 12, count: 312 },
-  { hour: 13, count: 276 },
-  { hour: 14, count: 245 },
-  { hour: 15, count: 289 },
-  { hour: 16, count: 324 },
-  { hour: 17, count: 398 },
-  { hour: 18, count: 356 },
-  { hour: 19, count: 267 },
-  { hour: 20, count: 189 },
-  { hour: 21, count: 134 },
-  { hour: 22, count: 98 },
-  { hour: 23, count: 67 },
-];
-
-// Mock data for recent events summary (no API yet)
-const deviceSummary = [
-  { device: '摄像头A-入口', eventsToday: 8, topEvent: '超速' },
-  { device: '摄像头B-出口', eventsToday: 6, topEvent: '违停' },
-  { device: '摄像头C-隧道北', eventsToday: 5, topEvent: '超速' },
-  { device: '摄像头D-隧道南', eventsToday: 4, topEvent: '逆行' },
-];
-
-// Known event type label and color mapping
-const EVENT_TYPE_CONFIG = {
-  accident:        { label: '事故',   color: '#ef4444' },
-  fire:            { label: '火灾',   color: '#f97316' },
-  congestion:      { label: '拥堵',   color: '#f59e0b' },
-  speeding:        { label: '超速',   color: '#ef4444' },
-  illegal_parking: { label: '违停',   color: '#f59e0b' },
-  wrong_way:       { label: '逆行',   color: '#3b82f6' },
-  pedestrian:      { label: '行人',   color: '#8b5cf6' },
-  other:           { label: '其他',   color: '#64748b' },
-};
-
-const FALLBACK_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#64748b', '#ec4899', '#f43f5e'];
-
-/**
- * Transforms raw eventCounts from the API into the distribution array
- * used by EventPieChart. Percentages are rounded to whole numbers.
- */
-function buildDistribution(eventCounts, totalEvents) {
-  return Object.entries(eventCounts).map(([type, count], index) => {
-    const config = EVENT_TYPE_CONFIG[type];
-    return {
-      type: config ? config.label : type,
-      count,
-      percentage: Math.round((count / totalEvents) * 100),
-      color: config ? config.color : FALLBACK_COLORS[index % FALLBACK_COLORS.length],
-    };
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function StatCard({ icon, title, value, unit, trend, trendValue }) {
+function StatCard({ icon, title, value, unit, trend, trendValue, loading, error }) {
   const isPositive = trend === 'up';
+  const displayValue = loading ? '--' : error ? '--' : value;
+
   return (
     <div className="stat-card">
       <div className="stat-icon">{icon}</div>
       <div className="stat-content">
         <div className="stat-title">{title}</div>
         <div className="stat-value">
-          {value}
+          {displayValue}
           <span className="stat-unit">{unit}</span>
         </div>
         <div className={`stat-trend ${isPositive ? 'positive' : 'negative'}`}>
           <span className="trend-arrow">{isPositive ? '↑' : '↓'}</span>
-          <span className="trend-value">{trendValue}</span>
+          <span className="trend-value">{error ? '获取失败' : trendValue}</span>
         </div>
       </div>
     </div>
   );
 }
 
-function TrafficChart() {
-  const maxCount = Math.max(...hourlyData.map(d => d.count));
+function TrafficChart({ hourlyData, loading, error }) {
   const chartWidth = 100;
   const chartHeight = 50;
   const padding = 2;
+
+  if (loading) {
+    return (
+      <div className="chart-container">
+        <div className="chart-title">24小时车流量趋势</div>
+        <div className="chart-loading">加载中...</div>
+      </div>
+    );
+  }
+
+  if (error || !hourlyData || hourlyData.length === 0) {
+    return (
+      <div className="chart-container">
+        <div className="chart-title">24小时车流量趋势</div>
+        <div className="chart-error">数据加载失败</div>
+      </div>
+    );
+  }
+
+  const maxCount = Math.max(...hourlyData.map(d => d.count));
 
   const points = hourlyData.map(d => ({
     x: (d.hour / 23) * (chartWidth - padding * 2) + padding,
@@ -135,6 +90,36 @@ function TrafficChart() {
       </div>
     </div>
   );
+}
+
+// Known event type label and color mapping
+const EVENT_TYPE_CONFIG = {
+  accident:        { label: '事故',   color: '#ef4444' },
+  fire:            { label: '火灾',   color: '#f97316' },
+  congestion:      { label: '拥堵',   color: '#f59e0b' },
+  speeding:        { label: '超速',   color: '#ef4444' },
+  illegal_parking: { label: '违停',   color: '#f59e0b' },
+  wrong_way:       { label: '逆行',   color: '#3b82f6' },
+  pedestrian:      { label: '行人',   color: '#8b5cf6' },
+  other:           { label: '其他',   color: '#64748b' },
+};
+
+const FALLBACK_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#64748b', '#ec4899', '#f43f5e'];
+
+/**
+ * Transforms raw eventCounts from the API into the distribution array
+ * used by EventPieChart. Percentages are rounded to whole numbers.
+ */
+function buildDistribution(eventCounts, totalEvents) {
+  return Object.entries(eventCounts).map(([type, count], index) => {
+    const config = EVENT_TYPE_CONFIG[type];
+    return {
+      type: config ? config.label : type,
+      count,
+      percentage: Math.round((count / totalEvents) * 100),
+      color: config ? config.color : FALLBACK_COLORS[index % FALLBACK_COLORS.length],
+    };
+  });
 }
 
 /**
@@ -246,11 +231,21 @@ function TimeRangeBtn({ label, active, onClick }) {
 export default function Statistics() {
   const [timeRange, setTimeRange] = useState('今日');
 
-  // Real data from API
-  const [totalEvents,     setTotalEvents]     = useState(null);
+  // Traffic API data
+  const [trafficData, setTrafficData] = useState(null);
+  const [trafficLoading, setTrafficLoading] = useState(true);
+  const [trafficError, setTrafficError] = useState(null);
+
+  // Events API data
+  const [totalEvents, setTotalEvents] = useState(null);
   const [eventDistribution, setEventDistribution] = useState([]);
-  const [statsLoading,    setStatsLoading]    = useState(true);
-  const [statsError,      setStatsError]      = useState(null);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [eventsError, setEventsError] = useState(null);
+
+  // Devices API data
+  const [deviceStats, setDeviceStats] = useState([]);
+  const [devicesLoading, setDevicesLoading] = useState(true);
+  const [devicesError, setDevicesError] = useState(null);
 
   const timeRanges = ['今日', '本周', '本月', '本年'];
 
@@ -261,9 +256,25 @@ export default function Statistics() {
       axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
     }
 
-    setStatsLoading(true);
-    setStatsError(null);
+    // Fetch traffic data
+    setTrafficLoading(true);
+    setTrafficError(null);
+    axios
+      .get(`${STATISTICS_API}/traffic`)
+      .then(res => {
+        setTrafficData(res.data);
+      })
+      .catch(err => {
+        console.error('Failed to fetch traffic:', err);
+        setTrafficError(err.message || '请求失败');
+      })
+      .finally(() => {
+        setTrafficLoading(false);
+      });
 
+    // Fetch events data
+    setEventsLoading(true);
+    setEventsError(null);
     axios
       .get(`${STATISTICS_API}/events`)
       .then(res => {
@@ -272,20 +283,34 @@ export default function Statistics() {
         setEventDistribution(buildDistribution(eventCounts, total));
       })
       .catch(err => {
-        console.error('Failed to fetch statistics:', err);
-        setStatsError(err.message || '请求失败');
+        console.error('Failed to fetch events:', err);
+        setEventsError(err.message || '请求失败');
       })
       .finally(() => {
-        setStatsLoading(false);
+        setEventsLoading(false);
+      });
+
+    // Fetch devices data
+    setDevicesLoading(true);
+    setDevicesError(null);
+    axios
+      .get(`${STATISTICS_API}/devices`)
+      .then(res => {
+        setDeviceStats(res.data.deviceStats || []);
+      })
+      .catch(err => {
+        console.error('Failed to fetch devices:', err);
+        setDevicesError(err.message || '请求失败');
+      })
+      .finally(() => {
+        setDevicesLoading(false);
       });
   }, []);
 
-  // Display value for the total-events stat card
-  const totalEventsDisplay = statsLoading
+  // Format online devices display
+  const onlineDevicesDisplay = trafficLoading || trafficError
     ? '--'
-    : statsError
-      ? '--'
-      : String(totalEvents ?? '--');
+    : `${trafficData?.onlineDevices ?? '--'}/${trafficData?.totalDevices ?? '--'}`;
 
   return (
     <div className="page">
@@ -484,6 +509,19 @@ export default function Statistics() {
           color: var(--text-muted);
         }
 
+        .chart-loading, .chart-error {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 180px;
+          font-size: 0.875rem;
+          color: var(--text-muted);
+        }
+
+        .chart-error {
+          color: var(--accent-danger);
+        }
+
         .pie-chart-wrapper {
           display: flex;
           align-items: center;
@@ -634,6 +672,19 @@ export default function Statistics() {
           border-color: var(--border-default);
         }
 
+        .table-loading, .table-error {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: var(--spacing-xl);
+          font-size: 0.875rem;
+          color: var(--text-muted);
+        }
+
+        .table-error {
+          color: var(--accent-danger);
+        }
+
         @media (max-width: 1200px) {
           .stats-grid {
             grid-template-columns: repeat(2, 1fr);
@@ -674,88 +725,95 @@ export default function Statistics() {
 
       {/* Stat Cards */}
       <div className="stats-grid">
-        {/* Mock — no traffic API yet */}
         <StatCard
           icon="🚗"
           title="今日车流量"
-          value="1,234"
+          value={trafficLoading || trafficError ? null : trafficData?.todayTraffic ?? null}
           unit=""
           trend="up"
           trendValue="+12.5%"
+          loading={trafficLoading}
+          error={trafficError}
         />
-        {/* Mock — no speed API yet */}
         <StatCard
           icon="🚀"
           title="平均车速"
-          value="62.5"
+          value={trafficLoading || trafficError ? null : trafficData?.avgSpeed ?? null}
           unit="km/h"
           trend="up"
           trendValue="+3.2%"
+          loading={trafficLoading}
+          error={trafficError}
         />
-        {/* Real data from /api/v1/statistics/events */}
         <StatCard
           icon="⚠️"
           title="事件总数"
-          value={totalEventsDisplay}
+          value={eventsLoading || eventsError ? null : totalEvents}
           unit=""
           trend="down"
-          trendValue={statsError ? '获取失败' : statsLoading ? '...' : '-8.3%'}
+          trendValue={eventsError ? '获取失败' : eventsLoading ? '...' : '-8.3%'}
+          loading={eventsLoading}
+          error={eventsError}
         />
-        {/* Mock — no device online API yet */}
         <StatCard
           icon="📹"
           title="在线设备"
-          value="4/6"
+          value={trafficLoading || trafficError ? null : onlineDevicesDisplay}
           unit=""
           trend="up"
-          trendValue="67%"
+          trendValue="在线"
+          loading={trafficLoading}
+          error={trafficError}
         />
       </div>
 
       {/* Charts */}
       <div className="charts-grid">
         <div className="chart-card">
-          <TrafficChart />
+          <TrafficChart
+            hourlyData={trafficData?.hourlyData}
+            loading={trafficLoading}
+            error={trafficError}
+          />
         </div>
         <div className="chart-card">
-          {/* Real data from /api/v1/statistics/events */}
           <EventPieChart
             distribution={eventDistribution}
-            loading={statsLoading}
-            error={statsError}
+            loading={eventsLoading}
+            error={eventsError}
           />
         </div>
       </div>
 
-      {/* Events Summary Table — mock, no API yet */}
+      {/* Device Stats Table */}
       <div className="table-card">
         <div className="table-title">设备事件汇总</div>
-        <table className="summary-table">
-          <thead>
-            <tr>
-              <th>设备名称</th>
-              <th>今日事件数</th>
-              <th>主要事件类型</th>
-            </tr>
-          </thead>
-          <tbody>
-            {deviceSummary.map((item, index) => (
-              <tr key={index}>
-                <td>{item.device}</td>
-                <td>{item.eventsToday}</td>
-                <td>
-                  <span className={`event-type-badge ${
-                    item.topEvent === '超速' ? '' :
-                    item.topEvent === '违停' ? 'warning' :
-                    item.topEvent === '逆行' ? 'info' : 'neutral'
-                  }`}>
-                    {item.topEvent}
-                  </span>
-                </td>
+        {devicesLoading ? (
+          <div className="table-loading">加载中...</div>
+        ) : devicesError ? (
+          <div className="table-error">数据加载失败</div>
+        ) : deviceStats.length === 0 ? (
+          <div className="table-loading">暂无数据</div>
+        ) : (
+          <table className="summary-table">
+            <thead>
+              <tr>
+                <th>设备名称</th>
+                <th>今日事件数</th>
+                <th>最后事件时间</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {deviceStats.map((item, index) => (
+                <tr key={index}>
+                  <td>{item.deviceName}</td>
+                  <td>{item.eventCount}</td>
+                  <td>{item.lastEventTime || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

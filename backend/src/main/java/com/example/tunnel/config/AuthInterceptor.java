@@ -1,12 +1,22 @@
 package com.example.tunnel.config;
 
+import com.example.tunnel.entity.User;
+import com.example.tunnel.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 @Component
 public class AuthInterceptor implements HandlerInterceptor {
+
+    public static final String USER_ID_ATTR = "userId";
+    public static final String USERNAME_ATTR = "username";
+    public static final String USER_ROLE_ATTR = "userRole";
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -20,7 +30,15 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         // MVP简易校验，要求必须携带 mvp-token- 前缀的标牌
         if (token != null && token.startsWith("Bearer mvp-token-")) {
-            return true;
+            String actualToken = token.substring(7); // Remove "Bearer " prefix
+            User user = userRepository.findByToken(actualToken).orElse(null);
+            if (user != null) {
+                // Set user info as request attributes for later use
+                request.setAttribute(USER_ID_ATTR, user.getId());
+                request.setAttribute(USERNAME_ATTR, user.getUsername());
+                request.setAttribute(USER_ROLE_ATTR, user.getRole());
+                return true;
+            }
         }
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

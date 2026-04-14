@@ -2,8 +2,10 @@ package com.example.tunnel.config;
 
 import com.example.tunnel.entity.User;
 import com.example.tunnel.entity.Device;
+import com.example.tunnel.entity.SystemSetting;
 import com.example.tunnel.repository.UserRepository;
 import com.example.tunnel.repository.DeviceRepository;
+import com.example.tunnel.repository.SystemSettingRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,7 +16,10 @@ import java.time.LocalDateTime;
 public class DatabaseInitConfig {
 
     @Bean
-    public CommandLineRunner initDatabase(UserRepository userRepository, DeviceRepository deviceRepository) {
+    public CommandLineRunner initDatabase(
+            UserRepository userRepository,
+            DeviceRepository deviceRepository,
+            SystemSettingRepository systemSettingRepository) {
         return args -> {
             // 自动插入默认管理员账号
             if (userRepository.count() == 0) {
@@ -23,7 +28,7 @@ public class DatabaseInitConfig {
                 admin.setPassword("123456");
                 admin.setRole("ADMIN");
                 admin.setCreatedTime(LocalDateTime.now());
-                
+
                 userRepository.save(admin);
                 System.out.println("====== [数据库初始化] 已自动注入默认管理员帐号：admin / 123456 ======");
             }
@@ -52,6 +57,31 @@ public class DatabaseInitConfig {
 
                 System.out.println("====== [数据库初始化] 已自动注入两路测试摄像头配置 ======");
             }
+
+            // 自动插入默认系统设置
+            if (systemSettingRepository.count() == 0) {
+                createSettingIfNotExists(systemSettingRepository, "MAX_TRAFFIC_THRESHOLD", "500", "最大车流阈值");
+                createSettingIfNotExists(systemSettingRepository, "SPEED_LIMIT", "120", "限速值 km/h");
+                createSettingIfNotExists(systemSettingRepository, "OVERSPEED_THRESHOLD", "20", "超速百分比");
+                createSettingIfNotExists(systemSettingRepository, "PARKING_TIMEOUT", "300", "违停超时秒数");
+                createSettingIfNotExists(systemSettingRepository, "EVENT_RETENTION_DAYS", "30", "事件保留天数");
+
+                System.out.println("====== [数据库初始化] 已自动注入默认系统设置 ======");
+            }
         };
+    }
+
+    private void createSettingIfNotExists(
+            SystemSettingRepository repository,
+            String key,
+            String value,
+            String description) {
+        if (repository.findBySettingKey(key).isEmpty()) {
+            SystemSetting setting = new SystemSetting();
+            setting.setSettingKey(key);
+            setting.setSettingValue(value);
+            setting.setDescription(description);
+            repository.save(setting);
+        }
     }
 }

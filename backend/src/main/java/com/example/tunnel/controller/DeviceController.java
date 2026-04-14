@@ -1,5 +1,6 @@
 package com.example.tunnel.controller;
 
+import com.example.tunnel.annotation.Loggable;
 import com.example.tunnel.entity.Device;
 import com.example.tunnel.repository.DeviceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,7 @@ public class DeviceController {
         return ResponseEntity.ok(response);
     }
 
+    @Loggable
     @PostMapping("/add")
     public ResponseEntity<?> addDevice(@RequestBody Device device) {
         if (deviceRepository.findByDeviceCode(device.getDeviceCode()).isPresent()) {
@@ -39,6 +41,7 @@ public class DeviceController {
         return ResponseEntity.ok(Map.of("code", 200, "message", "Device added", "data", saved));
     }
     
+    @Loggable
     @PutMapping("/update/{id}")
     public ResponseEntity<?> updateDevice(@PathVariable Long id, @RequestBody Device updatedDevice) {
         Optional<Device> optionalDevice = deviceRepository.findById(id);
@@ -58,6 +61,7 @@ public class DeviceController {
         return ResponseEntity.ok(Map.of("code", 200, "message", "Device updated"));
     }
 
+    @Loggable
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<?> deleteDevice(@PathVariable Long id) {
         if (!deviceRepository.existsById(id)) {

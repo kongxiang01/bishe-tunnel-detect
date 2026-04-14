@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "sys_user")
 public class User {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -22,6 +22,9 @@ public class User {
 
     @Column(name = "created_time")
     private LocalDateTime createdTime;
+
+    @Column(length = 100)
+    private String token;
 
     // Getters and Setters
     public Long getId() {
@@ -62,5 +65,13 @@ public class User {
 
     public void setCreatedTime(LocalDateTime createdTime) {
         this.createdTime = createdTime;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
     }
 }
