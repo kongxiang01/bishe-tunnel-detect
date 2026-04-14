@@ -1,30 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const mockUsers = [
-  {
-    id: 1,
-    username: 'admin',
-    role: 'Admin',
-    status: 'active',
-    lastLogin: '2026-04-14 08:30:22'
-  },
-  {
-    id: 2,
-    username: 'operator01',
-    role: 'Viewer',
-    status: 'active',
-    lastLogin: '2026-04-14 09:15:45'
-  },
-  {
-    id: 3,
-    username: 'operator02',
-    role: 'Viewer',
-    status: 'inactive',
-    lastLogin: '2026-04-10 17:22:00'
-  }
-];
-
 const API_BASE = '/api/v1/users';
 
 function Users() {
@@ -51,8 +27,7 @@ function Users() {
       setUsers(response.data);
     } catch (err) {
       console.error('Failed to fetch users:', err);
-      setError('获取用户列表失败，使用模拟数据');
-      setUsers(mockUsers);
+      setError('获取用户列表失败');
     } finally {
       setLoading(false);
     }

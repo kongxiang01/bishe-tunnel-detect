@@ -1,39 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const mockDevices = [
-  {
-    id: 1,
-    deviceCode: 'DEV001',
-    name: '隧道入口摄像头',
-    location: '东进口 50m 处',
-    streamUrl: 'rtsp://192.168.1.101:554/stream1',
-    status: 'ONLINE',
-    resolution: '1920x1080',
-    fps: 30
-  },
-  {
-    id: 2,
-    deviceCode: 'DEV002',
-    name: '隧道出口摄像头',
-    location: '西出口 30m 处',
-    streamUrl: 'rtsp://192.168.1.102:554/stream1',
-    status: 'ONLINE',
-    resolution: '1920x1080',
-    fps: 30
-  },
-  {
-    id: 3,
-    deviceCode: 'DEV003',
-    name: '隧道中部摄像头',
-    location: '中段 200m 处',
-    streamUrl: 'rtsp://192.168.1.103:554/stream1',
-    status: 'OFFLINE',
-    resolution: '1280x720',
-    fps: 25
-  }
-];
-
 const getAuthHeaders = () => ({
   headers: {
     Authorization: `Bearer ${localStorage.getItem('token') || ''}`
@@ -63,8 +30,7 @@ function Devices() {
       setDevices(response.data.data || []);
     } catch (err) {
       console.error('Failed to fetch devices:', err);
-      setError('获取设备列表失败，使用模拟数据');
-      setDevices(mockDevices);
+      setError('获取设备列表失败');
     } finally {
       setLoading(false);
     }

@@ -58,14 +58,13 @@ const FALLBACK_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#64748b', '#ec4899', 
  * used by EventPieChart. Percentages are rounded to whole numbers.
  */
 function buildDistribution(eventCounts, totalEvents) {
-  if (!eventCounts || totalEvents === 0) return [];
   return Object.entries(eventCounts).map(([type, count], index) => {
     const config = EVENT_TYPE_CONFIG[type];
     return {
-      type:       config ? config.label : type,
+      type: config ? config.label : type,
       count,
       percentage: Math.round((count / totalEvents) * 100),
-      color:      config ? config.color : FALLBACK_COLORS[index % FALLBACK_COLORS.length],
+      color: config ? config.color : FALLBACK_COLORS[index % FALLBACK_COLORS.length],
     };
   });
 }
