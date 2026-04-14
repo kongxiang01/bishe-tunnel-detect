@@ -1,220 +1,195 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import CameraGrid from '../components/CameraGrid';
 import '../styles.css';
 
 const API_BASE = '/api';
-const ALGO_WS = 'ws://localhost:8000/ws/stream';
 
 export default function Monitor() {
   const [health, setHealth] = useState('checking');
   const [isDetecting, setIsDetecting] = useState(true);
-  const [events, setEvents] = useState([]); // 保存告警记录
+  const [events, setEvents] = useState([]);
+  const [devices, setDevices] = useState([]);
   const navigate = useNavigate();
-  
-  const canvasRef = useRef(null);
 
-  // 初始化健康检查
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
     }
 
-    axios.get(`${API_BASE}/health`)
+    axios.get(API_BASE + '/health')
       .then((r) => setHealth(r.data.status || 'unknown'))
       .catch(() => setHealth('offline'));
+
+    axios.get(API_BASE + '/devices/list')
+      .then(res => {
+        if (res.data.code === 200 && res.data.data.length > 0) {
+          setDevices(res.data.data);
+        }
+      })
+      .catch(err => console.error('Failed to fetch devices', err));
   }, []);
 
-  // 定时拉取后端的告警事件列表
   useEffect(() => {
     const fetchEvents = () => {
-      axios.get(`${API_BASE}/events/list`)
+      axios.get(API_BASE + '/events/list')
         .then(res => {
           if (res.data) setEvents(res.data);
         })
         .catch(err => console.error('Failed to fetch events:', err));
     };
 
-    fetchEvents(); // 初始化查一次
-    const interval = setInterval(fetchEvents, 2000); // 每2秒轮询一次新告警
-
+    fetchEvents();
+    const interval = setInterval(fetchEvents, 2000);
     return () => clearInterval(interval);
   }, []);
 
-  // 持续检测视频流的核心循环 (替换过去所有复杂的时间同步轮询代码！)
-  useEffect(() => {
-    let ws = null;
+  const handleCameraEvent = (event) => {
+    console.log('Camera event received:', event);
+  };
 
-    if (isDetecting) {
-      ws = new WebSocket(ALGO_WS);
-
-      ws.onopen = () => {
-        console.log('算法节点WebSocket 直连流已连通，开始实况接受！');
-        // 当收到连接信号时，将重叠画布尺寸与图片真实尺寸同步对齐
-        const img = document.getElementById('live-stream-img');
-        if (canvasRef.current && img && img.naturalWidth) {
-          canvasRef.current.width = img.naturalWidth;
-          canvasRef.current.height = img.naturalHeight;
-        }
-      };
-
-      // 用于计算 FPS 的变量
-      let lastFpsTime = performance.now();
-      let frameCount = 0;
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          
-          // --- 监控日志：跟踪算法推送速率与延迟 ---
-          const now = performance.now();
-          frameCount++;
-          if (now - lastFpsTime >= 1000) {
-            // 计算推理结果从 Python 产生到前端接收的端到端网络+处理延迟
-            const networkLatency = Date.now() - data.timestamp_ms;
-            console.log(`📊 [监控] 算法推框速率: ${frameCount} FPS | 网络传输延迟: 约 ${networkLatency} ms`);
-            frameCount = 0;
-            lastFpsTime = now;
-          }
-
-          // 超低延迟的制胜法宝：收到 WebSocket 通知那一刻直接绘制！不存数组，不排队，拿到即刷！
-          // 在同网络层级下，画出的位置和当前屏幕流 100% 对应！
-          if (data.detections) {
-            drawBBoxes(data.detections);
-          }
-        } catch (e) {
-          console.error("Parse WS msg error", e);
-        }
-      };
+  const getHealthBadgeClass = () => {
+    switch (health) {
+      case 'healthy':
+      case 'online':
+        return 'badge online';
+      case 'offline':
+      case 'error':
+        return 'badge offline';
+      default:
+        return 'badge neutral';
     }
+  };
 
-    return () => {
-      // 断开清理屏幕残影
-      if (ws) ws.close();
-      if (canvasRef.current) {
-        const ctx = canvasRef.current.getContext('2d');
-        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-      }
-    };
-  }, [isDetecting]);
-
-  // 在 Canvas 专属图层上绘制红框
-  const drawBBoxes = (detections) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    
-    // 清除上一个瞬间画上去的内容（流推陈出新的关键）
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 将 detections 排序，让 'accident' 排在最后绘制，从而覆盖在 vehicle 等其他框之上
-    const sortedDetections = [...detections].sort((a, b) => {
-      if (a.class_name === 'accident' && b.class_name !== 'accident') return 1;
-      if (a.class_name !== 'accident' && b.class_name === 'accident') return -1;
-      return 0;
-    });
-
-    sortedDetections.forEach(det => {
-      const [x1, y1, x2, y2] = det.bbox;
-      const width = x2 - x1;
-      const height = y2 - y1;
-
-      ctx.strokeStyle = '#ff0b3a';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(x1, y1, width, height);
-
-      ctx.fillStyle = '#ff0b3a';
-      ctx.fillRect(x1, y1 - 28, ctx.measureText(det.class_name).width + 65, 28);
-      
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '20px sans-serif';
-      const trackIdText = det.track_id !== undefined ? ` ID:${det.track_id}` : '';
-      ctx.fillText(`${det.class_name} ${(det.confidence * 100).toFixed(1)}%${trackIdText}`, x1 + 5, y1 - 6);
-    });
+  const getHealthLabel = () => {
+    switch (health) {
+      case 'healthy':
+      case 'online':
+        return '系统在线';
+      case 'offline':
+      case 'error':
+        return '系统离线';
+      case 'checking':
+        return '检测中...';
+      default:
+        return '未知状态';
+    }
   };
 
   return (
     <div className="page">
+      {/* Header */}
       <header className="top">
-        <h1>Tunnel Traffic MVP</h1>
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          <span className={`badge ${health}`}>backend: {health}</span>
-          <button 
+        <h1>隧道交通监控中心</h1>
+        <div className="header-controls">
+          <button
+            className="header-btn"
+            onClick={() => navigate('/devices')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            设备管理
+          </button>
+          <span className={getHealthBadgeClass()}>{getHealthLabel()}</span>
+          <button
+            className="header-btn danger"
             onClick={() => {
               localStorage.removeItem('token');
               localStorage.removeItem('username');
               navigate('/login');
             }}
-            style={{ padding: '4px 12px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
           >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
             退出登录
           </button>
         </div>
       </header>
 
+      {/* Main Surveillance Section */}
       <section className="card card-stream">
-        <div className="stream-header">
-          <h2>Stream Monitor (Preview)</h2>
-          <button 
-            className="simulate-btn" 
-            style={{ backgroundColor: isDetecting ? '#ef4444' : '#10b981' }}
+        <div className="card-header">
+          <h2>多路监控画面</h2>
+          <button
+            className={`simulate-btn ${isDetecting ? 'active' : 'paused'}`}
             onClick={() => setIsDetecting(!isDetecting)}
           >
-            {isDetecting ? '停止监控检测' : '[联调] 开始实时视频推流'}
+            {isDetecting ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="4" width="4" height="16"></rect>
+                  <rect x="14" y="4" width="4" height="16"></rect>
+                </svg>
+                停止检测
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                开始检测
+              </>
+            )}
           </button>
         </div>
-        
-        <div className="player-wrapper">
-          {/* 这里放我们的本地视频文件，这就像是你最终从转发服务器接管下来的 <LivePlayer> */}
-          <img 
-            id="live-stream-img"
-            src="http://127.0.0.1:5000/stream" 
-            className="stream-video"
-            alt="隧道实时监控画面直播源"
-            onLoad={(e) => {
-              // 为了保证刚刷出直播画面就能将画布正确悬浮覆盖其上
-              if (canvasRef.current) {
-                canvasRef.current.width = e.target.naturalWidth;
-                canvasRef.current.height = e.target.naturalHeight;
-              }
-            }}
-          />
-          
-          {/* 画框图层，绝对定位悬浮在 Video/IMG 身上，永远同步 */}
-          <canvas 
-            ref={canvasRef} 
-            className="overlay-canvas"
-          />
-        </div>
+
+        <CameraGrid
+          devices={devices}
+          isDetecting={isDetecting}
+          onEvent={handleCameraEvent}
+        />
       </section>
 
-      <section className="card card-events" style={{ marginTop: '20px' }}>
-        <h2>📢 实时异常告警中心 (Recent Events)</h2>
-        <div style={{ maxHeight: '300px', overflowY: 'auto', background: '#1e1e1e', borderRadius: '8px', padding: '10px' }}>
+      {/* Events Section */}
+      <section className="card card-events" style={{ marginTop: 'var(--spacing-lg)' }}>
+        <div className="card-header">
+          <h2>实时告警中心</h2>
+          <span className="badge warning">{events.length} 条事件</span>
+        </div>
+        <div className="events-container">
           {events.length === 0 ? (
-            <p style={{ color: '#888', textAlign: 'center' }}>当前无告警记录</p>
+            <div className="empty-events">
+              <span>暂无告警信息</span>
+            </div>
           ) : (
             events.map((evt, index) => (
-              <div 
-                key={index} 
-                style={{
-                  borderLeft: '4px solid #ef4444',
-                  background: '#2b2b2b',
-                  marginBottom: '10px',
-                  padding: '12px 16px',
-                  borderRadius: '4px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}
+              <div
+                key={index}
+                className={`event-card ${evt.eventType?.toLowerCase().includes('warning') ? 'warning' : ''}`}
               >
-                <div>
-                  <strong style={{ color: '#ef4444', marginRight: '10px' }}>{evt.eventType}</strong>
-                  <span style={{ color: '#e5e7eb' }}>{evt.description}</span>
-                  {evt.trackId && <span style={{ marginLeft: '10px', color: '#fbbf24' }}>[追踪ID: {evt.trackId}]</span>}
+                <div className="event-icon">
+                  {evt.eventType?.toLowerCase().includes('warning') ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                      <line x1="12" y1="9" x2="12" y2="13"></line>
+                      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="8" x2="12" y2="12"></line>
+                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                  )}
                 </div>
-                <div style={{ color: '#9ca3af', fontSize: '0.85em' }}>
+                <div className="event-content">
+                  <div className="event-type">{evt.eventType}</div>
+                  <div className="event-description">
+                    {evt.description}
+                    {evt.trackId && (
+                      <span className="event-track-id">ID: {evt.trackId}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="event-time">
                   {new Date(evt.eventTime).toLocaleString()}
                 </div>
               </div>

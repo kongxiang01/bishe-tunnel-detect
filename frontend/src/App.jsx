@@ -1,23 +1,27 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
-import Monitor from './pages/Monitor';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import router from './router';
+import './styles.css';
 
-const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    return <Navigate to='/login' replace />;
-  }
-  return children;
-};
+function App() {
+  const renderRoutes = (routes) => {
+    return routes.map((route, index) => (
+      <Route
+        key={index}
+        path={route.path}
+        element={route.element}
+      >
+        {route.children && renderRoutes(route.children)}
+      </Route>
+    ));
+  };
 
-export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path='/login' element={<Login />} />
-        <Route path='/monitor' element={<ProtectedRoute><Monitor /></ProtectedRoute>} />
-        <Route path='*' element={<Navigate to='/monitor' replace />} />
+        {renderRoutes(router)}
       </Routes>
     </BrowserRouter>
   );
 }
+
+export default App;

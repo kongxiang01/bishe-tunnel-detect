@@ -25,6 +25,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+开发过程文档
 claude-code-输出
 *.pdf
 .claude
