@@ -14,27 +14,28 @@ from app.services.event_service import EventService
 app = FastAPI(title="Tunnel MVP Algorithm Service")
 
 # --- 初始化服务引擎 (全局单例) ---
-# 将庞大的深度学习与跟踪初始化提至全局
+# 将庞大的深度学习引擎提至全局, tracker则每个连接独立
 model_service = ModelService()
-tracker_service = TrackerService()
 
 @app.get("/health")
 def health():
     return {"status": "online", "service": "algorithm", "model": "YOLOv5s"}
 
 @app.websocket("/ws/stream")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket, stream_url: str = None):
     await websocket.accept()
     client_ip = websocket.client.host
     print(f"[{datetime.now().strftime('%H:%M:%S')}] 🔌 新的前端连接已建立: {client_ip}")
     
-    # 每个前端连接(监控窗口)产生一个独立的异常事件追踪器，防坐标重叠
+    # 每个前端连接(监控窗口)产生一个独立的事件追踪器和目标追踪器，防止不同的摄像头流串ID和坐标混乱
     event_service = EventService()
+    tracker_service = TrackerService()
     
-    stream_url = settings.STREAM_URL
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 正在拉取源视频流: {stream_url}")
+    # 如果前端请求里带了 stream_url 参数，就优先使用，否则 fallback 到 config 里写死的
+    target_stream = stream_url if stream_url else settings.STREAM_URL
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 正在拉取源视频流: {target_stream}")
     
-    cap = cv2.VideoCapture(stream_url)
+    cap = cv2.VideoCapture(target_stream)
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1) 
     
     if not cap.isOpened():
