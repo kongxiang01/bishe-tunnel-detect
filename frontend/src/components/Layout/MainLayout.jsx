@@ -326,8 +326,22 @@ export default function MainLayout() {
           display: none;
         }
 
+        .sidebar.collapsed .nav-item {
+          justify-content: center;
+          padding: var(--spacing-md) 0;
+        }
+
+        .sidebar.collapsed .nav-item svg {
+          width: 20px;
+          height: 20px;
+        }
+
         .sidebar.collapsed .sidebar-header {
           justify-content: center;
+        }
+
+        .sidebar.collapsed .logo-text {
+          display: none;
         }
 
         .sidebar-toggle {
