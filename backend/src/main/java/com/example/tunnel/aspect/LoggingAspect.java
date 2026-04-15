@@ -128,7 +128,7 @@ public class LoggingAspect {
                 if (arg != null && !isExcludedType(arg)) {
                     String paramName = paramNames != null && i < paramNames.length
                             ? paramNames[i] : "arg" + i;
-                    String value = truncate(String.valueOf(arg), 500);
+                    String value = truncate(String.valueOf(arg), 100);
                     if (details.length() > 0) {
                         details.append("; ");
                     }
@@ -137,7 +137,7 @@ public class LoggingAspect {
             }
         }
 
-        return details.toString();
+        return truncate(details.toString(), 250);
     }
 
     private boolean isExcludedType(Object arg) {
@@ -148,6 +148,6 @@ public class LoggingAspect {
     private String truncate(String str, int maxLength) {
         if (str == null) return "";
         if (str.length() <= maxLength) return str;
-        return str.substring(0, maxLength) + "...";
+        return str.substring(0, maxLength - 3) + "...";
     }
 }

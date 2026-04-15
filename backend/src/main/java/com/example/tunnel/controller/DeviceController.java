@@ -28,7 +28,9 @@ public class DeviceController {
     @Loggable
     @PostMapping("/add")
     public ResponseEntity<ApiResponse<Device>> addDevice(@RequestBody Device device) {
-        if (deviceRepository.findByDeviceCode(device.getDeviceCode()).isPresent()) {
+        if (device.getDeviceCode() == null || device.getDeviceCode().isEmpty()) {
+            device.setDeviceCode(java.util.UUID.randomUUID().toString().replace("-", ""));
+        } else if (deviceRepository.findByDeviceCode(device.getDeviceCode()).isPresent()) {
             return ResponseEntity.badRequest().body(ApiResponse.error(400, "Device code already exists"));
         }
         device.setStatus("ONLINE");

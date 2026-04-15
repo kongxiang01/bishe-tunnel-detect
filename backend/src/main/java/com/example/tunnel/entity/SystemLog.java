@@ -19,6 +19,7 @@ public class SystemLog {
 
     private String targetResource;
 
+    @Column(columnDefinition = "TEXT")
     private String details;
 
     @Column(length = 20)

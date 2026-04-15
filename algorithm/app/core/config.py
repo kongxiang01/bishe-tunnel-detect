@@ -5,7 +5,7 @@ class Settings:
     # BASE_DIR 指向 algorithm 根目录
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     YOLO_DIR = os.path.join(BASE_DIR, "yolov5")
-    MODEL_PATH = os.path.join(BASE_DIR, "SimAM+SIoU+BiFPN.pt")
+    MODEL_PATH = os.path.join(BASE_DIR, "best.pt")
     # MODEL_PATH = os.path.join(BASE_DIR, "tunnel_baseline.pt")
     BYTETRACK_DIR = os.path.join(BASE_DIR, "ByteTrack")
 

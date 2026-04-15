@@ -22,7 +22,9 @@ TARGET_FPS = 30
 # 存储不同路视频流的最新帧
 cameras = {
     "camera_01": {"frame": None, "file": "隧道合集2.mp4"},
-    "camera_02": {"frame": None, "file": "mock-video-0.mp4"} # 可以复用或替换为别的视频
+    "camera_02": {"frame": None, "file": "mock-video-0.mp4"},
+    "camera_03": {"frame": None, "file": "起火精简版.mp4"},
+    "camera_04": {"frame": None, "file": "隧道3.mp4"},
 }
 
 def capture_video(cam_id, video_file):
@@ -83,4 +85,6 @@ if __name__ == "__main__":
     print("🎥 多路模拟流媒体转发核心服务器启动...")
     print("✅ 摄像头 1 (隧道A段): http://127.0.0.1:5000/stream/camera_01")
     print("✅ 摄像头 2 (隧道B段): http://127.0.0.1:5000/stream/camera_02")
+    print("✅ 摄像头 3 (隧道C段): http://127.0.0.1:5000/stream/camera_03")
+    print("✅ 摄像头 4 (隧道D段): http://127.0.0.1:5000/stream/camera_04")
     uvicorn.run("mock_stream_server:app", host="0.0.0.0", port=5000, reload=False)

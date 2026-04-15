@@ -15,6 +15,7 @@ function Devices() {
   const [modalMode, setModalMode] = useState('add');
   const [currentDevice, setCurrentDevice] = useState(null);
   const [formData, setFormData] = useState({
+    deviceCode: '',
     name: '',
     location: '',
     streamUrl: '',
@@ -42,6 +43,7 @@ function Devices() {
 
   const resetForm = () => {
     setFormData({
+      deviceCode: '',
       name: '',
       location: '',
       streamUrl: '',
@@ -61,6 +63,7 @@ function Devices() {
     setModalMode('edit');
     setCurrentDevice(device);
     setFormData({
+      deviceCode: device.deviceCode,
       name: device.name,
       location: device.location,
       streamUrl: device.streamUrl,
@@ -220,6 +223,28 @@ function Devices() {
               {modalMode === 'add' ? '添加设备' : '编辑设备'}
             </h2>
             <form onSubmit={handleSubmit}>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                  设备编号 (必填，唯一)
+                </label>
+                <input
+                  type="text"
+                  name="deviceCode"
+                  value={formData.deviceCode}
+                  onChange={handleInputChange}
+                  required
+                  disabled={modalMode === 'edit'}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: '6px',
+                    background: modalMode === 'edit' ? 'var(--bg-card-hover)' : 'var(--bg-default)',
+                    color: modalMode === 'edit' ? 'var(--text-muted)' : 'var(--text-primary)',
+                    fontSize: '0.9rem'
+                  }}
+                />
+              </div>
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
                   设备名称
