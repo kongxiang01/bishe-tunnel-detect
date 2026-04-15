@@ -1,105 +1,105 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import CameraGrid from '../components/CameraGrid';
-import '../styles.css';
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
+import CameraGrid from '../components/CameraGrid'
+import useMonitorStore from '../stores/useMonitorStore'
+import '../styles.css'
 
-const API_BASE = '/api';
+const API_BASE = '/api'
 
 export default function Monitor() {
-  const [health, setHealth] = useState('checking');
-  const [isDetecting, setIsDetecting] = useState(true);
-  const [events, setEvents] = useState([]);
-  const [devices, setDevices] = useState([]);
-  const navigate = useNavigate();
+  const [health, setHealth] = useState('checking')
+  const [events, setEvents] = useState([])
+  const [devices, setDevices] = useState([])
+  const navigate = useNavigate()
+
+  const { isDetecting, setIsDetecting } = useMonitorStore()
 
   useEffect(() => {
     // 设置 Authorization header
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token')
     if (token) {
-      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
+      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token
     } else {
-      // 没有 token，跳转登录
-      navigate('/login');
-      return;
+      navigate('/login')
+      return
     }
 
     // 获取健康状态
     axios.get(API_BASE + '/health')
       .then((r) => setHealth(r.data?.data?.status || r.data?.status || 'unknown'))
-      .catch(() => setHealth('offline'));
+      .catch(() => setHealth('offline'))
 
     // 获取设备列表
     axios.get(API_BASE + '/devices/list')
       .then(res => {
         if (res.data.code === 200 && res.data.data.length > 0) {
-          setDevices(res.data.data);
+          setDevices(res.data.data)
         }
       })
       .catch(err => {
-        console.error('Failed to fetch devices', err);
+        console.error('Failed to fetch devices', err)
         if (err.response?.status === 401) {
-          navigate('/login');
+          navigate('/login')
         }
-      });
-  }, [navigate]);
+      })
+  }, [navigate])
 
   useEffect(() => {
     const fetchEvents = () => {
       axios.get(API_BASE + '/events/list')
         .then(res => {
-          // 后端返回 Page 对象，需要取 content 字段
-          const apiData = res.data.data || {};
+          const apiData = res.data.data || {}
           if (apiData.content) {
-            setEvents(apiData.content);
+            setEvents(apiData.content)
           } else if (Array.isArray(apiData)) {
-            setEvents(apiData);
+            setEvents(apiData)
           }
         })
         .catch(err => {
-          console.error('Failed to fetch events:', err);
+          console.error('Failed to fetch events:', err)
           if (err.response?.status === 401) {
-            navigate('/login');
+            navigate('/login')
           }
-        });
-    };
+        })
+    }
 
-    fetchEvents();
-    const interval = setInterval(fetchEvents, 2000);
-    return () => clearInterval(interval);
-  }, [navigate]);
+    fetchEvents()
+    const interval = setInterval(fetchEvents, 2000)
+    return () => clearInterval(interval)
+  }, [navigate])
 
   const handleCameraEvent = (event) => {
-    console.log('Camera event received:', event);
-  };
+    console.log('Camera event received:', event)
+  }
 
   const getHealthBadgeClass = () => {
     switch (health) {
       case 'healthy':
       case 'online':
-        return 'badge online';
+        return 'badge online'
       case 'offline':
       case 'error':
-        return 'badge offline';
+        return 'badge offline'
       default:
-        return 'badge neutral';
+        return 'badge neutral'
     }
-  };
+  }
 
   const getHealthLabel = () => {
     switch (health) {
       case 'healthy':
       case 'online':
-        return '系统在线';
+        return '系统在线'
       case 'offline':
       case 'error':
-        return '系统离线';
+        return '系统离线'
       case 'checking':
-        return '检测中...';
+        return '检测中...'
       default:
-        return '未知状态';
+        return '未知状态'
     }
-  };
+  }
 
   return (
     <div className="page">
@@ -122,9 +122,9 @@ export default function Monitor() {
           <button
             className="header-btn danger"
             onClick={() => {
-              localStorage.removeItem('token');
-              localStorage.removeItem('username');
-              navigate('/login');
+              localStorage.removeItem('token')
+              localStorage.removeItem('username')
+              navigate('/login')
             }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -166,7 +166,6 @@ export default function Monitor() {
 
         <CameraGrid
           devices={devices}
-          isDetecting={isDetecting}
           onEvent={handleCameraEvent}
         />
       </section>
@@ -221,5 +220,5 @@ export default function Monitor() {
         </div>
       </section>
     </div>
-  );
+  )
 }

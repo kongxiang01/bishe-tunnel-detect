@@ -1,45 +1,30 @@
-import { useState, useMemo, useEffect } from 'react';
-import CameraStream from './CameraStream';
+import { useEffect, useMemo } from 'react'
+import CameraStream from './CameraStream'
+import useMonitorStore from '../stores/useMonitorStore'
 
-export default function CameraGrid({ devices, isDetecting, onEvent }) {
-  const [layoutMode, setLayoutMode] = useState('2');
-  const [selectedDevices, setSelectedDevices] = useState([]);
+export default function CameraGrid({ devices, onEvent }) {
+  const { layoutMode, setLayoutMode, selectedDevices, initSelectedDevices, toggleDevice } = useMonitorStore()
 
   // 初始化：设备加载后默认全选
   useEffect(() => {
-    if (devices && devices.length > 0 && selectedDevices.length === 0) {
-      setSelectedDevices(devices.map(d => d.id));
-    }
-  }, [devices]);
+    initSelectedDevices(devices)
+  }, [devices])
 
   // 根据选中的设备列表显示，没有选中则不显示任何监控
   const visibleDevices = useMemo(() => {
-    if (!devices || devices.length === 0) return [];
-    if (selectedDevices.length === 0) return [];
-    return devices.filter(d => selectedDevices.includes(d.id));
-  }, [devices, selectedDevices]);
+    if (!devices || devices.length === 0) return []
+    if (selectedDevices.length === 0) return []
+    return devices.filter(d => selectedDevices.includes(d.id))
+  }, [devices, selectedDevices])
 
   const gridCols = useMemo(() => {
     switch (layoutMode) {
-      case '1': return 1;
-      case '2': return 2;
-      case '3': return 3;
-      default: return 2;
+      case '1': return 1
+      case '2': return 2
+      case '3': return 3
+      default: return 2
     }
-  }, [layoutMode]);
-
-  const toggleDeviceSelection = (deviceId) => {
-    setSelectedDevices(prev => {
-      if (prev.includes(deviceId)) {
-        return prev.filter(id => id !== deviceId);
-      }
-      return [...prev, deviceId];
-    });
-  };
-
-  const selectLayout = (mode) => {
-    setLayoutMode(mode);
-  };
+  }, [layoutMode])
 
   if (!devices || devices.length === 0) {
     return (
@@ -53,11 +38,10 @@ export default function CameraGrid({ devices, isDetecting, onEvent }) {
         <p style={styles.emptyTitle}>无设备连接</p>
         <p style={styles.emptyText}>请在设备管理页面添加设备</p>
       </div>
-    );
+    )
   }
 
-  // 没有任何设备被选中时的提示
-  const showNoSelection = selectedDevices.length === 0 && devices.length > 0;
+  const showNoSelection = selectedDevices.length === 0 && devices.length > 0
 
   return (
     <div style={styles.container}>
@@ -68,19 +52,19 @@ export default function CameraGrid({ devices, isDetecting, onEvent }) {
           <div className="layout-toggle">
             <button
               className={`layout-toggle-btn ${layoutMode === '1' ? 'active' : ''}`}
-              onClick={() => selectLayout('1')}
+              onClick={() => setLayoutMode('1')}
             >
               1列
             </button>
             <button
               className={`layout-toggle-btn ${layoutMode === '2' ? 'active' : ''}`}
-              onClick={() => selectLayout('2')}
+              onClick={() => setLayoutMode('2')}
             >
               2列
             </button>
             <button
               className={`layout-toggle-btn ${layoutMode === '3' ? 'active' : ''}`}
-              onClick={() => selectLayout('3')}
+              onClick={() => setLayoutMode('3')}
             >
               3列
             </button>
@@ -98,7 +82,7 @@ export default function CameraGrid({ devices, isDetecting, onEvent }) {
                 <input
                   type="checkbox"
                   checked={selectedDevices.includes(device.id)}
-                  onChange={() => toggleDeviceSelection(device.id)}
+                  onChange={() => toggleDevice(device.id)}
                 />
                 <span className="device-chip-text">{device.name}</span>
               </label>
@@ -108,9 +92,8 @@ export default function CameraGrid({ devices, isDetecting, onEvent }) {
 
         <div className="info-text">
           {selectedDevices.length > 0
-            ? `显示 ${visibleDevices.length} / ${selectedDevices.length} 路已选摄像头`
-            : `共 ${devices.length} 路摄像头`
-          }
+            ? `显示 ${visibleDevices.length} 路已选摄像头`
+            : `共 ${devices.length} 路摄像头`}
         </div>
       </div>
 
@@ -135,7 +118,7 @@ export default function CameraGrid({ devices, isDetecting, onEvent }) {
             <CameraStream
               key={device.id}
               device={device}
-              isDetecting={isDetecting}
+              isDetecting={useMonitorStore.getState().isDetecting}
               onEvent={onEvent}
               style={{
                 animationDelay: `${index * 50}ms`,
@@ -145,7 +128,7 @@ export default function CameraGrid({ devices, isDetecting, onEvent }) {
         </div>
       )}
     </div>
-  );
+  )
 }
 
 const styles = {
@@ -153,11 +136,6 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: 'var(--spacing-md)',
-  },
-  grid: {
-    display: 'grid',
-    gap: 'var(--spacing-md)',
-    width: '100%',
   },
   emptyState: {
     display: 'flex',
@@ -175,14 +153,4 @@ const styles = {
     marginBottom: 'var(--spacing-md)',
     opacity: 0.5,
   },
-  emptyTitle: {
-    fontSize: '1.1rem',
-    fontWeight: 600,
-    color: 'var(--text-secondary)',
-    marginBottom: 'var(--spacing-xs)',
-  },
-  emptyText: {
-    fontSize: '0.9rem',
-    color: 'var(--text-muted)',
-  },
-};
+}
