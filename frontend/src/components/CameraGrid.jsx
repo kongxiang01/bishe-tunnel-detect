@@ -2,8 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import CameraStream from './CameraStream';
 
 export default function CameraGrid({ devices, isDetecting, onEvent }) {
-  const [layoutMode, setLayoutMode] = useState('auto');
-  const [customCount, setCustomCount] = useState(4);
+  const [layoutMode, setLayoutMode] = useState('2');
   const [selectedDevices, setSelectedDevices] = useState([]);
 
   // 初始化：设备加载后默认全选
@@ -17,36 +16,17 @@ export default function CameraGrid({ devices, isDetecting, onEvent }) {
   const visibleDevices = useMemo(() => {
     if (!devices || devices.length === 0) return [];
     if (selectedDevices.length === 0) return [];
-
-    const deviceList = devices.filter(d => selectedDevices.includes(d.id));
-
-    switch (layoutMode) {
-      case '1':
-        return deviceList.slice(0, 1);
-      case '2':
-        return deviceList.slice(0, 2);
-      case '4':
-        return deviceList.slice(0, 4);
-      case '6':
-        return deviceList.slice(0, 6);
-      case 'custom':
-        return deviceList.slice(0, customCount);
-      case 'auto':
-      default:
-        const count = deviceList.length;
-        if (count <= 1) return deviceList.slice(0, 1);
-        if (count <= 4) return deviceList.slice(0, count);
-        return deviceList.slice(0, Math.min(count, 6));
-    }
-  }, [devices, layoutMode, customCount, selectedDevices]);
+    return devices.filter(d => selectedDevices.includes(d.id));
+  }, [devices, selectedDevices]);
 
   const gridCols = useMemo(() => {
-    const count = visibleDevices.length;
-    if (count <= 1) return 1;
-    if (count <= 2) return 2;
-    if (count <= 4) return 2;
-    return 3;
-  }, [visibleDevices.length]);
+    switch (layoutMode) {
+      case '1': return 1;
+      case '2': return 2;
+      case '3': return 3;
+      default: return 2;
+    }
+  }, [layoutMode]);
 
   const toggleDeviceSelection = (deviceId) => {
     setSelectedDevices(prev => {
@@ -90,55 +70,21 @@ export default function CameraGrid({ devices, isDetecting, onEvent }) {
               className={`layout-toggle-btn ${layoutMode === '1' ? 'active' : ''}`}
               onClick={() => selectLayout('1')}
             >
-              1画面
+              1列
             </button>
             <button
               className={`layout-toggle-btn ${layoutMode === '2' ? 'active' : ''}`}
               onClick={() => selectLayout('2')}
             >
-              2画面
+              2列
             </button>
             <button
-              className={`layout-toggle-btn ${layoutMode === '4' ? 'active' : ''}`}
-              onClick={() => selectLayout('4')}
+              className={`layout-toggle-btn ${layoutMode === '3' ? 'active' : ''}`}
+              onClick={() => selectLayout('3')}
             >
-              4画面
-            </button>
-            <button
-              className={`layout-toggle-btn ${layoutMode === '6' ? 'active' : ''}`}
-              onClick={() => selectLayout('6')}
-            >
-              6画面
-            </button>
-            <button
-              className={`layout-toggle-btn ${layoutMode === 'auto' ? 'active' : ''}`}
-              onClick={() => selectLayout('auto')}
-            >
-              自动
+              3列
             </button>
           </div>
-        </div>
-
-        <div className="control-group">
-          <span className="control-label">自定义:</span>
-          <input
-            type="number"
-            min="1"
-            max={devices.length}
-            value={customCount}
-            onChange={(e) => {
-              setCustomCount(Math.max(1, Math.min(devices.length, parseInt(e.target.value) || 1)));
-              setLayoutMode('custom');
-            }}
-            className="number-input"
-          />
-          <button
-            className={`layout-toggle-btn ${layoutMode === 'custom' ? 'active' : ''}`}
-            onClick={() => selectLayout('custom')}
-            style={{ padding: '4px 12px' }}
-          >
-            应用
-          </button>
         </div>
 
         <div className="control-group" style={{ flex: 1, minWidth: '250px' }}>
@@ -183,6 +129,7 @@ export default function CameraGrid({ devices, isDetecting, onEvent }) {
       ) : (
         <div
           className={`camera-grid ${visibleDevices.length === 1 ? 'single' : ''}`}
+          style={{ gridTemplateColumns: `repeat(${gridCols}, 1fr)` }}
         >
           {visibleDevices.map((device, index) => (
             <CameraStream
