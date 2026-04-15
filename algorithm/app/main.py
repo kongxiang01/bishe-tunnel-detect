@@ -78,6 +78,11 @@ async def websocket_endpoint(websocket: WebSocket, stream_url: str = None):
 
             # --- 步骤 2：帧间追踪分配 ---
             class_names = model_service.get_names()
+            
+            # [调试打印] 强制打印出当前帧 YOLO 原始检测库里的所有目标类别名
+            #raw_classes = [class_names[int(d[5])] for d in raw_dets]
+            #print(f"[{datetime.now().strftime('%H:%M:%S')}] [YOLO底层] 刚刚推断出的原始类别集: {list(set(raw_classes))}")
+            
             detections = tracker_service.track_and_match(raw_dets, frame.shape, class_names)
             
             # --- 步骤 3：业务逻辑 -> 异常事件拦截 ---

@@ -91,7 +91,7 @@ export default function CameraStream({ device, isDetecting, onEvent, style }) {
 
       // Determine color based on detection type
       const isAccident = det.class_name === 'accident';
-      const isWarning = det.class_name === 'warning' || det.class_name === '异常';
+      const isWarning = det.class_name === 'fire';
 
       let strokeColor;
       if (isAccident) {

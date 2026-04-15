@@ -17,7 +17,11 @@ class ModelService:
         
     def detect(self, frame):
         """对单帧画面进行推断，返回 YOLO 原始 Results 对象"""
-        return self.model(frame)
+        import cv2
+        # OpenCV 读取的帧默认是 BGR 格式，而 YOLOv5 模型是基于 RGB 图像训练的
+        # 必须将 BGR 转换回 RGB，否则高度依赖颜色特征的类别（如红色的火灾、车尾灯等）会完全失效
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        return self.model(rgb_frame)
         
     def get_names(self):
         """获取目标对应字典，比如 {0: 'car', 1: 'truck'}"""
