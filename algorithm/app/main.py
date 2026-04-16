@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.services.model_service import ModelService
 from app.services.tracker_service import TrackerService
 from app.services.event_service import EventService
+from app.services.traffic_service import TrafficService
 
 app = FastAPI(title="Tunnel MVP Algorithm Service")
 
@@ -22,14 +23,16 @@ def health():
     return {"status": "online", "service": "algorithm", "model": "YOLOv5s"}
 
 @app.websocket("/ws/stream")
-async def websocket_endpoint(websocket: WebSocket, stream_url: str = None):
+async def websocket_endpoint(websocket: WebSocket, stream_url: str = None, device_id: str = None, device_name: str = None):
     await websocket.accept()
     client_ip = websocket.client.host
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] 🔌 新的前端连接已建立: {client_ip}")
-    
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] 🔌 新的前端连接已建立: {client_ip}, device_id={device_id}, device_name={device_name}")
+
     # 每个前端连接(监控窗口)产生一个独立的事件追踪器和目标追踪器，防止不同的摄像头流串ID和坐标混乱
-    event_service = EventService()
+    # 同时将 deviceId 和 deviceName 传递给各个服务
+    event_service = EventService(device_id=device_id, device_name=device_name)
     tracker_service = TrackerService()
+    traffic_service = TrafficService(device_id=device_id)
     
     # 如果前端请求里带了 stream_url 参数，就优先使用，否则 fallback 到 config 里写死的
     target_stream = stream_url if stream_url else settings.STREAM_URL
@@ -87,6 +90,11 @@ async def websocket_endpoint(websocket: WebSocket, stream_url: str = None):
             
             # --- 步骤 3：业务逻辑 -> 异常事件拦截 ---
             current_events = event_service.process_events(detections)
+
+            # --- 步骤 3.5：业务逻辑 -> 车流量撞线计数 ---
+            # 默认将撞线高度设为画面高度的 60% (也可以提取到 config 中配置)
+            line_y = height * 0.6 if height > 0 else 300
+            traffic_service.process_traffic(detections, line_y)
 
             # --- 步骤 4：引擎日志与 Socket 推送 ---
             now = time.time()

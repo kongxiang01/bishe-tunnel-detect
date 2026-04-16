@@ -27,7 +27,7 @@ public interface DetectEventRepository extends JpaRepository<DetectEvent, Long>,
     /**
      * 按设备ID查询事件（分页）
      */
-    Page<DetectEvent> findByDeviceId(Long deviceId, Pageable pageable);
+    Page<DetectEvent> findByDeviceId(String deviceId, Pageable pageable);
 
     /**
      * 按事件类型查询事件（分页）
@@ -47,17 +47,17 @@ public interface DetectEventRepository extends JpaRepository<DetectEvent, Long>,
     /**
      * 按设备ID和事件类型查询事件（分页）
      */
-    Page<DetectEvent> findByDeviceIdAndEventType(Long deviceId, String eventType, Pageable pageable);
+    Page<DetectEvent> findByDeviceIdAndEventType(String deviceId, String eventType, Pageable pageable);
 
     /**
      * 按设备ID和处理状态查询事件（分页）
      */
-    Page<DetectEvent> findByDeviceIdAndStatus(Long deviceId, String status, Pageable pageable);
+    Page<DetectEvent> findByDeviceIdAndStatus(String deviceId, String status, Pageable pageable);
 
     /**
      * 按设备ID、事件类型和处理状态查询事件（分页）
      */
-    Page<DetectEvent> findByDeviceIdAndEventTypeAndStatus(Long deviceId, String eventType, String status, Pageable pageable);
+    Page<DetectEvent> findByDeviceIdAndEventTypeAndStatus(String deviceId, String eventType, String status, Pageable pageable);
 
     /**
      * 按时间范围查询事件（分页）
@@ -88,5 +88,5 @@ public interface DetectEventRepository extends JpaRepository<DetectEvent, Long>,
     /**
      * 统计某设备待处理事件数量
      */
-    long countByDeviceIdAndStatus(Long deviceId, String status);
+    long countByDeviceIdAndStatus(String deviceId, String status);
 }

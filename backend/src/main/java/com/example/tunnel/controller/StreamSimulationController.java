@@ -1,8 +1,11 @@
 package com.example.tunnel.controller;
 
+import com.example.tunnel.entity.TrafficRecord;
+import com.example.tunnel.repository.TrafficRecordRepository;
 import com.example.tunnel.service.ResultDispatchService;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 @RestController
@@ -11,9 +14,11 @@ import java.util.Map;
 public class StreamSimulationController {
 
     private final ResultDispatchService resultDispatchService;
+    private final TrafficRecordRepository trafficRecordRepository;
 
-    public StreamSimulationController(ResultDispatchService resultDispatchService) {
+    public StreamSimulationController(ResultDispatchService resultDispatchService, TrafficRecordRepository trafficRecordRepository) {
         this.resultDispatchService = resultDispatchService;
+        this.trafficRecordRepository = trafficRecordRepository;
     }
 
     /**
@@ -27,5 +32,25 @@ public class StreamSimulationController {
         // TODO: 1. 存入 MySQL 数据库，记录告警时间、坐标、车辆类型
         // TODO: 2. 如果是严重事故，通过 WebSocket (Java版) 强制广播给前端弹出刺耳警报
         return "Event recorded successfully";
+    }
+
+    /**
+     * 接收 Python 算法端上传的车流撞线信息
+     */
+    @PostMapping("/traffic/count")
+    public String receiveTrafficCount(@RequestBody Map<String, Object> payload) {
+        TrafficRecord record = new TrafficRecord();
+        record.setDeviceId((String) payload.getOrDefault("deviceId", "cam_default"));
+        record.setVehicleType((String) payload.getOrDefault("vehicleType", "vehicle"));
+        
+        Object trackIdObj = payload.get("trackId");
+        if (trackIdObj != null) {
+            record.setTrackId(Integer.valueOf(trackIdObj.toString()));
+        }
+        
+        record.setRecordTime(LocalDateTime.now());
+        trafficRecordRepository.save(record);
+        
+        return "Traffic counted successfully";
     }
 }

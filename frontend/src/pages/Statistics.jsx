@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import ReactECharts from 'echarts-for-react';
+import * as echarts from 'echarts';
 
 const STATISTICS_API = '/api/v1/statistics';
 
@@ -30,10 +32,6 @@ function StatCard({ icon, title, value, unit, trend, trendValue, loading, error 
 }
 
 function TrafficChart({ hourlyData, loading, error }) {
-  const chartWidth = 100;
-  const chartHeight = 50;
-  const padding = 2;
-
   if (loading) {
     return (
       <div className="chart-container">
@@ -52,56 +50,82 @@ function TrafficChart({ hourlyData, loading, error }) {
     );
   }
 
-  const maxCount = Math.max(...hourlyData.map(d => d.count));
-
-  const points = hourlyData.map(d => ({
-    x: (d.hour / 23) * (chartWidth - padding * 2) + padding,
-    y: chartHeight - (d.count / maxCount) * (chartHeight - padding * 2) - padding,
-  }));
-
-  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  const option = {
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params) => {
+        const data = params[0];
+        return `${data.name}时<br/>车流量: ${data.value} 辆`;
+      },
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      top: '10%',
+      containLabel: true,
+    },
+    xAxis: {
+      type: 'category',
+      data: hourlyData.map((d) => d.hour),
+      axisLabel: {
+        formatter: (value) => `${value}时`,
+        color: '#64748b',
+      },
+      axisLine: {
+        lineStyle: { color: '#e2e8f0' },
+      },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: {
+        color: '#64748b',
+      },
+      splitLine: {
+        lineStyle: { color: '#e2e8f0', type: 'dashed' },
+      },
+    },
+    series: [
+      {
+        name: '车流量',
+        type: 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 8,
+        lineStyle: {
+          color: '#3b82f6',
+          width: 2,
+        },
+        itemStyle: {
+          color: '#3b82f6',
+        },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(59, 130, 246, 0.3)' },
+            { offset: 1, color: 'rgba(59, 130, 246, 0.05)' },
+          ]),
+        },
+        data: hourlyData.map((d) => d.count),
+      },
+    ],
+  };
 
   return (
     <div className="chart-container">
       <div className="chart-title">24小时车流量趋势</div>
-      <svg viewBox={`0 0 ${chartWidth} ${chartHeight + 10}`} className="line-chart">
-        {[0, 0.25, 0.5, 0.75, 1].map(ratio => (
-          <line
-            key={ratio}
-            x1={padding}
-            y1={padding + ratio * (chartHeight - padding * 2)}
-            x2={chartWidth - padding}
-            y2={padding + ratio * (chartHeight - padding * 2)}
-            stroke="var(--border-default)"
-            strokeWidth="0.3"
-          />
-        ))}
-        <path d={pathD} fill="none" stroke="var(--accent-primary)" strokeWidth="0.8" />
-        {points.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r="0.8" fill="var(--accent-primary)" />
-        ))}
-      </svg>
-      <div className="chart-x-labels">
-        <span>0时</span>
-        <span>6时</span>
-        <span>12时</span>
-        <span>18时</span>
-        <span>24时</span>
-      </div>
+      <ReactECharts option={option} style={{ height: '220px' }} />
     </div>
   );
 }
 
 // Known event type label and color mapping
 const EVENT_TYPE_CONFIG = {
-  accident:        { label: '事故',   color: '#ef4444' },
-  fire:            { label: '火灾',   color: '#f97316' },
-  congestion:      { label: '拥堵',   color: '#f59e0b' },
-  speeding:        { label: '超速',   color: '#ef4444' },
-  illegal_parking: { label: '违停',   color: '#f59e0b' },
-  wrong_way:       { label: '逆行',   color: '#3b82f6' },
-  pedestrian:      { label: '行人',   color: '#8b5cf6' },
-  other:           { label: '其他',   color: '#64748b' },
+  TRAFFIC_ACCIDENT: { label: '事故', color: '#ef4444' },
+  FIRE_DISASTER: { label: '火灾', color: '#f97316' },
+  TRAFFIC_CONGESTION: { label: '拥堵', color: '#f59e0b' },
+  WRONG_WAY: { label: '逆行', color: '#3b82f6' },
+  PEDESTRIAN_INTRUSION: { label: '行人闯入', color: '#8b5cf6' },
+  other: { label: '其他', color: '#64748b' },
 };
 
 const FALLBACK_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#64748b', '#ec4899', '#f43f5e'];
@@ -111,6 +135,7 @@ const FALLBACK_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#64748b', '#ec4899', 
  * used by EventPieChart. Percentages are rounded to whole numbers.
  */
 function buildDistribution(eventCounts, totalEvents) {
+  console.log('11111111', eventCounts);
   return Object.entries(eventCounts).map(([type, count], index) => {
     const config = EVENT_TYPE_CONFIG[type];
     return {
@@ -128,97 +153,99 @@ function buildDistribution(eventCounts, totalEvents) {
  * when the array is empty.
  */
 function EventPieChart({ distribution, loading, error }) {
-  const radius = 20;
-  const centerX = 25;
-  const centerY = 22;
-
-  const renderBody = () => {
-    if (loading) {
-      return (
+  if (loading) {
+    return (
+      <div className="chart-container">
+        <div className="chart-title">事件类型分布</div>
         <div className="pie-loading">
           <span className="pie-loading-text">加载中...</span>
         </div>
-      );
-    }
+      </div>
+    );
+  }
 
-    if (error) {
-      return (
+  if (error) {
+    return (
+      <div className="chart-container">
+        <div className="chart-title">事件类型分布</div>
         <div className="pie-loading">
           <span className="pie-error-text">数据加载失败</span>
         </div>
-      );
-    }
+      </div>
+    );
+  }
 
-    if (!distribution || distribution.length === 0) {
-      return (
+  if (!distribution || distribution.length === 0) {
+    return (
+      <div className="chart-container">
+        <div className="chart-title">事件类型分布</div>
         <div className="pie-loading">
           <span className="pie-loading-text">暂无数据</span>
         </div>
-      );
-    }
-
-    let currentAngle = -90;
-    const paths = distribution.map((item) => {
-      const angle = (item.percentage / 100) * 360;
-      const startAngle = currentAngle;
-      const endAngle = currentAngle + angle;
-      currentAngle = endAngle;
-
-      const startRad = (startAngle * Math.PI) / 180;
-      const endRad   = (endAngle   * Math.PI) / 180;
-
-      const x1 = centerX + radius * Math.cos(startRad);
-      const y1 = centerY + radius * Math.sin(startRad);
-      const x2 = centerX + radius * Math.cos(endRad);
-      const y2 = centerY + radius * Math.sin(endRad);
-
-      const largeArc = angle > 180 ? 1 : 0;
-
-      return {
-        d:          `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`,
-        color:      item.color,
-        type:       item.type,
-        percentage: item.percentage,
-        count:      item.count,
-      };
-    });
-
-    return (
-      <div className="pie-chart-wrapper">
-        <svg viewBox="0 0 50 44" className="pie-chart">
-          {paths.map((path, i) => (
-            <path key={i} d={path.d} fill={path.color} />
-          ))}
-        </svg>
-        <div className="pie-legend">
-          {distribution.map((item, i) => (
-            <div key={i} className="legend-item">
-              <span className="legend-color" style={{ backgroundColor: item.color }}></span>
-              <span className="legend-label">{item.type}</span>
-              <span className="legend-value">
-                {item.count != null ? `${item.count}次` : `${item.percentage}%`}
-              </span>
-            </div>
-          ))}
-        </div>
       </div>
     );
+  }
+
+  const option = {
+    tooltip: {
+      trigger: 'item',
+      formatter: (params) => {
+        return `${params.name}<br/>事件数: ${params.value} 次<br/>占比: ${params.percent}%`;
+      },
+    },
+    legend: {
+      orient: 'vertical',
+      right: '5%',
+      top: 'center',
+      textStyle: {
+        color: '#64748b',
+      },
+    },
+    series: [
+      {
+        name: '事件类型',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        center: ['35%', '50%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 6,
+          borderColor: '#fff',
+          borderWidth: 2,
+        },
+        label: {
+          show: false,
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: 14,
+            fontWeight: 'bold',
+          },
+        },
+        labelLine: {
+          show: false,
+        },
+        data: distribution.map((item) => ({
+          value: item.count,
+          name: item.type,
+          itemStyle: { color: item.color },
+        })),
+      },
+    ],
   };
 
   return (
     <div className="chart-container">
       <div className="chart-title">事件类型分布</div>
-      {renderBody()}
+      <ReactECharts option={option} style={{ height: '220px' }} />
     </div>
   );
 }
 
 function TimeRangeBtn({ label, active, onClick }) {
   return (
-    <button
-      className={`header-btn time-range-btn ${active ? 'active' : ''}`}
-      onClick={onClick}
-    >
+    <button className={`header-btn time-range-btn ${active ? 'active' : ''}`} onClick={onClick}>
       {label}
     </button>
   );
@@ -261,10 +288,10 @@ export default function Statistics() {
     setTrafficError(null);
     axios
       .get(`${STATISTICS_API}/traffic`)
-      .then(res => {
+      .then((res) => {
         setTrafficData(res.data.data || null);
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('Failed to fetch traffic:', err);
         setTrafficError(err.message || '请求失败');
       })
@@ -277,12 +304,12 @@ export default function Statistics() {
     setEventsError(null);
     axios
       .get(`${STATISTICS_API}/events`)
-      .then(res => {
+      .then((res) => {
         const { eventCounts, totalEvents: total } = res.data.data || {};
         setTotalEvents(total);
         setEventDistribution(buildDistribution(eventCounts || {}, total || 0));
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('Failed to fetch events:', err);
         setEventsError(err.message || '请求失败');
       })
@@ -295,10 +322,10 @@ export default function Statistics() {
     setDevicesError(null);
     axios
       .get(`${STATISTICS_API}/devices`)
-      .then(res => {
+      .then((res) => {
         setDeviceStats(res.data.data?.deviceStats || []);
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('Failed to fetch devices:', err);
         setDevicesError(err.message || '请求失败');
       })
@@ -308,9 +335,10 @@ export default function Statistics() {
   }, []);
 
   // Format online devices display
-  const onlineDevicesDisplay = trafficLoading || trafficError
-    ? '--'
-    : `${trafficData?.onlineDevices ?? '--'}/${trafficData?.totalDevices ?? '--'}`;
+  const onlineDevicesDisplay =
+    trafficLoading || trafficError
+      ? '--'
+      : `${trafficData?.onlineDevices ?? '--'}/${trafficData?.totalDevices ?? '--'}`;
 
   return (
     <div className="page">
@@ -489,31 +517,11 @@ export default function Statistics() {
           border-radius: 2px;
         }
 
-        .line-chart {
-          width: 100%;
-          height: 180px;
-          background: var(--bg-secondary);
-          border-radius: var(--radius-md);
-          border: 1px solid var(--border-default);
-        }
-
-        .chart-x-labels {
-          display: flex;
-          justify-content: space-between;
-          margin-top: var(--spacing-sm);
-          padding: 0 var(--spacing-xs);
-        }
-
-        .chart-x-labels span {
-          font-size: 0.75rem;
-          color: var(--text-muted);
-        }
-
         .chart-loading, .chart-error {
           display: flex;
           align-items: center;
           justify-content: center;
-          height: 180px;
+          height: 220px;
           font-size: 0.875rem;
           color: var(--text-muted);
         }
@@ -522,58 +530,11 @@ export default function Statistics() {
           color: var(--accent-danger);
         }
 
-        .pie-chart-wrapper {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-lg);
-        }
-
-        .pie-chart {
-          width: 140px;
-          height: 140px;
-          flex-shrink: 0;
-        }
-
-        .pie-legend {
-          flex: 1;
-        }
-
-        .legend-item {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-sm);
-          padding: var(--spacing-sm) 0;
-          border-bottom: 1px solid var(--border-default);
-        }
-
-        .legend-item:last-child {
-          border-bottom: none;
-        }
-
-        .legend-color {
-          width: 12px;
-          height: 12px;
-          border-radius: 3px;
-          flex-shrink: 0;
-        }
-
-        .legend-label {
-          flex: 1;
-          font-size: 0.875rem;
-          color: var(--text-secondary);
-        }
-
-        .legend-value {
-          font-size: 0.875rem;
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-
         .pie-loading {
           display: flex;
           align-items: center;
           justify-content: center;
-          min-height: 140px;
+          min-height: 220px;
         }
 
         .pie-loading-text {
@@ -712,13 +673,8 @@ export default function Statistics() {
       <div className="stats-header">
         <h1>统计分析</h1>
         <div className="time-range-selector">
-          {timeRanges.map(range => (
-            <TimeRangeBtn
-              key={range}
-              label={range}
-              active={timeRange === range}
-              onClick={() => setTimeRange(range)}
-            />
+          {timeRanges.map((range) => (
+            <TimeRangeBtn key={range} label={range} active={timeRange === range} onClick={() => setTimeRange(range)} />
           ))}
         </div>
       </div>
@@ -728,20 +684,10 @@ export default function Statistics() {
         <StatCard
           icon="🚗"
           title="今日车流量"
-          value={trafficLoading || trafficError ? null : trafficData?.todayTraffic ?? null}
-          unit=""
+          value={trafficLoading || trafficError ? null : (trafficData?.todayTraffic ?? null)}
+          unit="辆"
           trend="up"
           trendValue="+12.5%"
-          loading={trafficLoading}
-          error={trafficError}
-        />
-        <StatCard
-          icon="🚀"
-          title="平均车速"
-          value={trafficLoading || trafficError ? null : trafficData?.avgSpeed ?? null}
-          unit="km/h"
-          trend="up"
-          trendValue="+3.2%"
           loading={trafficLoading}
           error={trafficError}
         />
@@ -749,7 +695,7 @@ export default function Statistics() {
           icon="⚠️"
           title="事件总数"
           value={eventsLoading || eventsError ? null : totalEvents}
-          unit=""
+          unit="起"
           trend="down"
           trendValue={eventsError ? '获取失败' : eventsLoading ? '...' : '-8.3%'}
           loading={eventsLoading}
@@ -757,9 +703,19 @@ export default function Statistics() {
         />
         <StatCard
           icon="📹"
+          title="设备总数"
+          value={trafficLoading || trafficError ? null : (trafficData?.totalDevices ?? null)}
+          unit="台"
+          trend="up"
+          trendValue="稳定"
+          loading={trafficLoading}
+          error={trafficError}
+        />
+        <StatCard
+          icon="🟢"
           title="在线设备"
-          value={trafficLoading || trafficError ? null : onlineDevicesDisplay}
-          unit=""
+          value={trafficLoading || trafficError ? null : (trafficData?.onlineDevices ?? null)}
+          unit="台"
           trend="up"
           trendValue="在线"
           loading={trafficLoading}
@@ -770,18 +726,10 @@ export default function Statistics() {
       {/* Charts */}
       <div className="charts-grid">
         <div className="chart-card">
-          <TrafficChart
-            hourlyData={trafficData?.hourlyData}
-            loading={trafficLoading}
-            error={trafficError}
-          />
+          <TrafficChart hourlyData={trafficData?.hourlyData} loading={trafficLoading} error={trafficError} />
         </div>
         <div className="chart-card">
-          <EventPieChart
-            distribution={eventDistribution}
-            loading={eventsLoading}
-            error={eventsError}
-          />
+          <EventPieChart distribution={eventDistribution} loading={eventsLoading} error={eventsError} />
         </div>
       </div>
 

@@ -15,7 +15,6 @@ function Devices() {
   const [modalMode, setModalMode] = useState('add');
   const [currentDevice, setCurrentDevice] = useState(null);
   const [formData, setFormData] = useState({
-    deviceCode: '',
     name: '',
     location: '',
     streamUrl: '',
@@ -43,7 +42,6 @@ function Devices() {
 
   const resetForm = () => {
     setFormData({
-      deviceCode: '',
       name: '',
       location: '',
       streamUrl: '',
@@ -63,7 +61,6 @@ function Devices() {
     setModalMode('edit');
     setCurrentDevice(device);
     setFormData({
-      deviceCode: device.deviceCode,
       name: device.name,
       location: device.location,
       streamUrl: device.streamUrl,
@@ -155,8 +152,8 @@ function Devices() {
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border-default)' }}>
                 <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>设备名称</th>
+                <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>设备ID</th>
                 <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>位置</th>
-                <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>流地址</th>
                 <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>状态</th>
                 <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>操作</th>
               </tr>
@@ -167,8 +164,8 @@ function Devices() {
                     onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-card-hover)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                   <td style={{ padding: '16px', color: 'var(--text-primary)', fontWeight: 500 }}>{device.name}</td>
+                  <td style={{ padding: '16px', color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: '0.8rem' }}>{device.deviceId}</td>
                   <td style={{ padding: '16px', color: 'var(--text-secondary)' }}>{device.location}</td>
-                  <td style={{ padding: '16px', color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: '0.85rem' }}>{device.streamUrl}</td>
                   <td style={{ padding: '16px' }}>
                     <span className={`badge ${device.status?.toLowerCase()}`}>
                       {device.status === 'ONLINE' ? '在线' : '离线'}
@@ -223,28 +220,28 @@ function Devices() {
               {modalMode === 'add' ? '添加设备' : '编辑设备'}
             </h2>
             <form onSubmit={handleSubmit}>
+              {modalMode === 'edit' && (
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                  设备编号 (必填，唯一)
+                  设备ID
                 </label>
                 <input
                   type="text"
-                  name="deviceCode"
-                  value={formData.deviceCode}
-                  onChange={handleInputChange}
-                  required
-                  disabled={modalMode === 'edit'}
+                  value={currentDevice?.deviceId || ''}
+                  disabled
                   style={{
                     width: '100%',
                     padding: '10px 12px',
                     border: '1px solid var(--border-default)',
                     borderRadius: '6px',
-                    background: modalMode === 'edit' ? 'var(--bg-card-hover)' : 'var(--bg-default)',
-                    color: modalMode === 'edit' ? 'var(--text-muted)' : 'var(--text-primary)',
-                    fontSize: '0.9rem'
+                    background: 'var(--bg-card-hover)',
+                    color: 'var(--text-muted)',
+                    fontSize: '0.9rem',
+                    fontFamily: 'monospace'
                   }}
                 />
               </div>
+              )}
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
                   设备名称

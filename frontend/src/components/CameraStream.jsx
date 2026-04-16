@@ -12,7 +12,7 @@ export default function CameraStream({ device, isDetecting, onEvent, style }) {
 
     if (isDetecting && device?.streamUrl) {
       const targetUrl = encodeURIComponent(device.streamUrl);
-      ws = new WebSocket(`${ALGO_WS}?stream_url=${targetUrl}`);
+      ws = new WebSocket(`${ALGO_WS}?stream_url=${targetUrl}&device_id=${encodeURIComponent(device.deviceId)}&device_name=${encodeURIComponent(device.name)}`);
 
       ws.onopen = () => {
         console.log('Connected to algorithm stream:', device.name);
@@ -169,12 +169,6 @@ export default function CameraStream({ device, isDetecting, onEvent, style }) {
           />
           {!isDetecting && (
             <div style={styles.pausedOverlay}>
-              <div style={styles.pauseIcon}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="6" y="4" width="4" height="16" rx="1"></rect>
-                  <rect x="14" y="4" width="4" height="16" rx="1"></rect>
-                </svg>
-              </div>
               <span>检测已暂停</span>
             </div>
           )}
@@ -265,9 +259,6 @@ const styles = {
     fontSize: '0.9rem',
     zIndex: 2,
     gap: '8px',
-  },
-  pauseIcon: {
-    color: 'var(--text-muted)',
   },
   errorOverlay: {
     position: 'absolute',

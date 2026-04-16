@@ -4,7 +4,7 @@ import threading
 from datetime import datetime
 from app.core.config import settings
 
-def send_event_to_backend(track_id, event_type, message):
+def send_event_to_backend(track_id, event_type, message, device_id=None, device_name=None):
     """
     异步发送事件到 Spring Boot 后端
     """
@@ -12,7 +12,9 @@ def send_event_to_backend(track_id, event_type, message):
     payload = {
         "eventType": event_type,
         "description": message,
-        "trackId": track_id
+        "trackId": track_id,
+        "deviceId": device_id,
+        "deviceName": device_name
     }
     try:
         # Timeout 限制避免拥满算法帧率
@@ -21,12 +23,12 @@ def send_event_to_backend(track_id, event_type, message):
         print(f"⚠️ [警告] 发送事件 {track_id} 到后端失败: {e}")
 
 class EventService:
-    def __init__(self):
+    def __init__(self, device_id=None, device_name=None):
         # 生命周期状态：{track_id: {"history": [(cx, cy, timestamp)], "alerted": bool}}
-        self.track_history = {}  
+        self.track_history = {}
         # 记录上一次发布拥堵警报的时间，用于冷却
-        self.last_congestion_alert = 0.0  
-        
+        self.last_congestion_alert = 0.0
+
         # 按类型记录静态异常事件（火灾/事故/行人）的上一次报警时间
         # 时间设定为 0.0 代表从未触发
         self.event_type_cooldowns = {
@@ -34,6 +36,10 @@ class EventService:
             "accident": 0.0,
             "person": 0.0
         }
+
+        # 当前设备的标识信息
+        self.device_id = device_id
+        self.device_name = device_name
         
     def process_events(self, detections):
         """
@@ -90,7 +96,7 @@ class EventService:
                         
                         threading.Thread(
                             target=send_event_to_backend,
-                            args=(tid, event_type, event_msg),
+                            args=(tid, event_type, event_msg, self.device_id, self.device_name),
                             daemon=True
                         ).start()
 
@@ -149,7 +155,7 @@ class EventService:
                         
                         threading.Thread(
                             target=send_event_to_backend,
-                            args=(0, "TRAFFIC_CONGESTION", event_msg), # 对于全局事件，track_id 可以传 0 
+                            args=(0, "TRAFFIC_CONGESTION", event_msg, self.device_id, self.device_name),
                             daemon=True
                         ).start()
                         

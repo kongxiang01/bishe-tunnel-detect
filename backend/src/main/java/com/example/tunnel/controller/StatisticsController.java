@@ -4,12 +4,15 @@ import com.example.tunnel.entity.Device;
 import com.example.tunnel.entity.DetectEvent;
 import com.example.tunnel.repository.DetectEventRepository;
 import com.example.tunnel.repository.DeviceRepository;
+import com.example.tunnel.repository.TrafficRecordRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.example.tunnel.dto.ApiResponse;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -21,6 +24,7 @@ public class StatisticsController {
 
     private final DetectEventRepository detectEventRepository;
     private final DeviceRepository deviceRepository;
+    private final TrafficRecordRepository trafficRecordRepository;
 
     @GetMapping("/events")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getEventStatistics() {
@@ -40,19 +44,18 @@ public class StatisticsController {
 
     /**
      * 获取交通流量统计数据
-     * TODO: 集成真实车流量统计模块
-     * - todayTraffic: 可通过车辆检测计数获得
-     * - avgSpeed: 可通过速度检测算法计算
-     * - hourlyData: 按小时聚合车辆通过数量
+     * MVP: 返回今日车流量以及模拟生成的24小时数据趋势
      */
     @GetMapping("/traffic")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getTrafficStatistics() {
         Map<String, Object> result = new HashMap<>();
 
-        // TODO: 集成真实交通流量统计
-        // 临时使用模拟数据，后续接入真实车流统计模块
-        result.put("todayTraffic", 1234);
-        result.put("avgSpeed", 62.5);
+        // 查询今日真实车流量数据
+        LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
+        LocalDateTime endOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MAX);
+        long todayTraffic = trafficRecordRepository.countTodayTraffic(startOfDay, endOfDay);
+        
+        result.put("todayTraffic", todayTraffic);
         result.put("totalEvents", detectEventRepository.count());
 
         // 设备统计

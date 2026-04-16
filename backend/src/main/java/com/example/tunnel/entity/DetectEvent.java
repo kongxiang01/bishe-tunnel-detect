@@ -36,7 +36,7 @@ public class DetectEvent {
      * 检测设备ID
      */
     @Column(name = "device_id")
-    private Long deviceId;
+    private String deviceId;
 
     /**
      * 检测设备名称（冗余存储，方便查询显示）
@@ -103,11 +103,11 @@ public class DetectEvent {
         this.eventTime = eventTime;
     }
 
-    public Long getDeviceId() {
+    public String getDeviceId() {
         return deviceId;
     }
 
-    public void setDeviceId(Long deviceId) {
+    public void setDeviceId(String deviceId) {
         this.deviceId = deviceId;
     }
 

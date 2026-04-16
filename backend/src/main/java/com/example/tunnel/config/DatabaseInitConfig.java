@@ -36,7 +36,7 @@ public class DatabaseInitConfig {
             // 自动插入默认的两路摄像头设备
             if (deviceRepository.count() == 0) {
                 Device cam1 = new Device();
-                cam1.setDeviceCode("CAM_TUNNEL_A_01");
+                cam1.setDeviceId("CAM_TUNNEL_A_01");
                 cam1.setName("隧道A段监控探头");
                 cam1.setLocation("京台高速西行隧道入口");
                 cam1.setStreamUrl("http://127.0.0.1:5000/stream/camera_01");
@@ -46,7 +46,7 @@ public class DatabaseInitConfig {
                 deviceRepository.save(cam1);
 
                 Device cam2 = new Device();
-                cam2.setDeviceCode("CAM_TUNNEL_A_02");
+                cam2.setDeviceId("CAM_TUNNEL_A_02");
                 cam2.setName("隧道B段监控探头");
                 cam2.setLocation("京台高速西行隧道中段");
                 cam2.setStreamUrl("http://127.0.0.1:5000/stream/camera_02");

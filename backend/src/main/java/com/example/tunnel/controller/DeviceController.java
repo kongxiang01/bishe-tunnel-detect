@@ -28,11 +28,8 @@ public class DeviceController {
     @Loggable
     @PostMapping("/add")
     public ResponseEntity<ApiResponse<Device>> addDevice(@RequestBody Device device) {
-        if (device.getDeviceCode() == null || device.getDeviceCode().isEmpty()) {
-            device.setDeviceCode(java.util.UUID.randomUUID().toString().replace("-", ""));
-        } else if (deviceRepository.findByDeviceCode(device.getDeviceCode()).isPresent()) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, "Device code already exists"));
-        }
+        // 强制生成唯一的 deviceId，不依赖前端传递
+        device.setDeviceId(java.util.UUID.randomUUID().toString().replace("-", ""));
         device.setStatus("ONLINE");
         Device saved = deviceRepository.save(device);
         return ResponseEntity.ok(ApiResponse.success("Device added", saved));

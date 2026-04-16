@@ -14,7 +14,7 @@ public class Device {
     private Long id;
 
     @Column(nullable = false, unique = true)
-    private String deviceCode;
+    private String deviceId;
 
     @Column(nullable = false)
     private String name;

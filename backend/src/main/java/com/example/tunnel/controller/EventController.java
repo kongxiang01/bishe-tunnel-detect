@@ -194,7 +194,7 @@ class EventUploadRequest {
     private String eventType;
     private String description;
     private Integer trackId;
-    private Long deviceId;
+    private String deviceId;
     private String deviceName;
     private String severity;
     private String status;
@@ -224,11 +224,11 @@ class EventUploadRequest {
         this.trackId = trackId;
     }
 
-    public Long getDeviceId() {
+    public String getDeviceId() {
         return deviceId;
     }
 
-    public void setDeviceId(Long deviceId) {
+    public void setDeviceId(String deviceId) {
         this.deviceId = deviceId;
     }
 
