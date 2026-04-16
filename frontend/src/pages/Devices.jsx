@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Table, Button, Space, Popconfirm, ConfigProvider, theme } from 'antd';
 
 const getAuthHeaders = () => ({
   headers: {
@@ -71,10 +72,6 @@ function Devices() {
   };
 
   const handleDelete = async (device) => {
-    if (!window.confirm(`确定要删除设备 "${device.name}" 吗？`)) {
-      return;
-    }
-
     try {
       await axios.delete(`/api/devices/delete/${device.id}`, getAuthHeaders());
       setDevices(devices.filter(d => d.id !== device.id));
@@ -122,252 +119,355 @@ function Devices() {
     resetForm();
   };
 
+  const columns = [
+    {
+      title: '设备名称',
+      dataIndex: 'name',
+      key: 'name',
+      render: (text) => <span style={{ fontWeight: 500 }}>{text}</span>,
+    },
+    {
+      title: '设备ID',
+      dataIndex: 'deviceId',
+      key: 'deviceId',
+      width: 180,
+      render: (text) => (
+        <span style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+          {text}
+        </span>
+      ),
+    },
+    {
+      title: '位置',
+      dataIndex: 'location',
+      key: 'location',
+      render: (text) => <span style={{ color: 'var(--text-secondary)' }}>{text}</span>,
+    },
+    {
+      title: '流地址',
+      dataIndex: 'streamUrl',
+      key: 'streamUrl',
+      ellipsis: true,
+      render: (text) => (
+        <span
+          style={{
+            fontFamily: 'monospace',
+            fontSize: '0.85rem',
+            color: 'var(--text-muted)',
+            maxWidth: 280,
+            display: 'block',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}
+          title={text}
+        >
+          {text}
+        </span>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 160,
+      render: (_, record) => (
+        <Space size="small">
+          <Button
+            size="small"
+            onClick={() => handleEdit(record)}
+            className="device-action-btn"
+          >
+            编辑
+          </Button>
+          <Popconfirm
+            title="确认删除"
+            description={`确定要删除设备 "${record.name}" 吗？`}
+            onConfirm={() => handleDelete(record)}
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button size="small" danger className="device-action-btn">
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
   return (
-    <div className="page">
-      <div className="top">
-        <h1>设备管理</h1>
-        <div className="header-controls">
-          <button className="primary-btn" onClick={handleAddDevice}>
-            + 添加设备
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div style={{ padding: '12px 16px', marginBottom: '16px', background: 'var(--bg-card-hover)', borderRadius: '8px', color: 'var(--text-secondary)' }}>
-          {error}
-        </div>
-      )}
-
-      <div className="card">
-        <div className="card-header">
-          <h2>设备列表</h2>
-        </div>
-        {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-            加载中...
+    <ConfigProvider
+      theme={{
+        algorithm: theme.darkAlgorithm,
+        token: {
+          colorPrimary: '#00d4ff',
+          colorBgContainer: '#1a2235',
+          colorBgElevated: '#1a2235',
+          colorBorder: '#2a3441',
+          colorText: '#f1f5f9',
+          colorTextSecondary: '#94a3b8',
+          colorTextTertiary: '#64748b',
+          borderRadius: 10,
+          fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
+        },
+        components: {
+          Table: {
+            headerBg: '#111827',
+            headerColor: '#94a3b8',
+            rowHoverBg: '#1f2940',
+            borderColor: '#2a3441',
+          },
+          Button: {
+            defaultBg: '#252d3d',
+            defaultBorderColor: '#2a3441',
+            defaultColor: '#94a3b8',
+          },
+        },
+      }}
+    >
+      <div className="page">
+        <div className="top">
+          <h1>设备管理</h1>
+          <div className="header-controls">
+            <Button type="primary" onClick={handleAddDevice}>
+              + 添加设备
+            </Button>
           </div>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-default)' }}>
-                <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>设备名称</th>
-                <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>设备ID</th>
-                <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>位置</th>
-                <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>流地址</th>
-                <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {devices.map((device) => (
-                <tr key={device.id} style={{ borderBottom: '1px solid var(--border-default)', transition: 'background var(--transition-fast)' }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-card-hover)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                  <td style={{ padding: '16px', color: 'var(--text-primary)', fontWeight: 500 }}>{device.name}</td>
-                  <td style={{ padding: '16px', color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: '0.8rem' }}>{device.deviceId}</td>
-                  <td style={{ padding: '16px', color: 'var(--text-secondary)' }}>{device.location}</td>
-                  <td style={{ padding: '16px', color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: '0.8rem', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={device.streamUrl}>
-                    {device.streamUrl}
-                  </td>
-                  <td style={{ padding: '16px' }}>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        className="header-btn"
-                        onClick={() => handleEdit(device)}
-                        style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                      >
-                        编辑
-                      </button>
-                      <button
-                        className="header-btn danger"
-                        onClick={() => handleDelete(device)}
-                        style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                      >
-                        删除
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        </div>
+
+        {error && (
+          <div className="card" style={{ padding: '12px 16px', marginBottom: '16px', color: 'var(--accent-danger)' }}>
+            {error}
+          </div>
         )}
-      </div>
 
-      {showModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }} onClick={closeModal}>
-          <div style={{
-            background: 'var(--bg-card)',
-            borderRadius: '12px',
-            padding: '24px',
-            width: '480px',
-            maxWidth: '90%'
-          }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ marginBottom: '20px', fontSize: '1.25rem' }}>
-              {modalMode === 'add' ? '添加设备' : '编辑设备'}
-            </h2>
-            <form onSubmit={handleSubmit}>
-              {modalMode === 'edit' && (
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                  设备ID
-                </label>
-                <input
-                  type="text"
-                  value={currentDevice?.deviceId || ''}
-                  disabled
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: '6px',
-                    background: 'var(--bg-card-hover)',
-                    color: 'var(--text-muted)',
-                    fontSize: '0.9rem',
-                    fontFamily: 'monospace'
-                  }}
-                />
-              </div>
-              )}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                  设备名称
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: '6px',
-                    background: 'var(--bg-default)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.9rem'
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                  位置
-                </label>
-                <input
-                  type="text"
-                  name="location"
-                  value={formData.location}
-                  onChange={handleInputChange}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: '6px',
-                    background: 'var(--bg-default)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.9rem'
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                  流地址
-                </label>
-                <input
-                  type="text"
-                  name="streamUrl"
-                  value={formData.streamUrl}
-                  onChange={handleInputChange}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: '6px',
-                    background: 'var(--bg-default)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.9rem'
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                  分辨率
-                </label>
-                <input
-                  type="text"
-                  name="resolution"
-                  value={formData.resolution}
-                  onChange={handleInputChange}
-                  placeholder="如: 1920x1080"
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: '6px',
-                    background: 'var(--bg-default)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.9rem'
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                  帧率 (FPS)
-                </label>
-                <input
-                  type="number"
-                  name="fps"
-                  value={formData.fps}
-                  onChange={handleInputChange}
-                  placeholder="如: 30"
-                  min="1"
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: '6px',
-                    background: 'var(--bg-default)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.9rem'
-                  }}
-                />
-              </div>
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="header-btn"
-                  style={{ padding: '10px 20px' }}
-                >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  className="primary-btn"
-                  style={{ padding: '10px 20px' }}
-                >
-                  {modalMode === 'add' ? '添加' : '保存'}
-                </button>
-              </div>
-            </form>
+        <div className="card">
+          <div className="card-header">
+            <h2>设备列表</h2>
           </div>
+
+          <Table
+            columns={columns}
+            dataSource={devices}
+            rowKey="id"
+            loading={loading}
+            pagination={false}
+            locale={{
+              emptyText: '暂无设备',
+            }}
+            className="devices-table"
+          />
         </div>
-      )}
-    </div>
+
+        {showModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }} onClick={closeModal}>
+            <div style={{
+              background: 'var(--bg-card)',
+              borderRadius: '12px',
+              padding: '24px',
+              width: '480px',
+              maxWidth: '90%'
+            }} onClick={e => e.stopPropagation()}>
+              <h2 style={{ marginBottom: '20px', fontSize: '1.25rem' }}>
+                {modalMode === 'add' ? '添加设备' : '编辑设备'}
+              </h2>
+              <form onSubmit={handleSubmit}>
+                {modalMode === 'edit' && (
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                    设备ID
+                  </label>
+                  <input
+                    type="text"
+                    value={currentDevice?.deviceId || ''}
+                    disabled
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: '6px',
+                      background: 'var(--bg-card-hover)',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.9rem',
+                      fontFamily: 'monospace'
+                    }}
+                  />
+                </div>
+                )}
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                    设备名称
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: '6px',
+                      background: 'var(--bg-default)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.9rem'
+                    }}
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                    位置
+                  </label>
+                  <input
+                    type="text"
+                    name="location"
+                    value={formData.location}
+                    onChange={handleInputChange}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: '6px',
+                      background: 'var(--bg-default)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.9rem'
+                    }}
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                    流地址
+                  </label>
+                  <input
+                    type="text"
+                    name="streamUrl"
+                    value={formData.streamUrl}
+                    onChange={handleInputChange}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: '6px',
+                      background: 'var(--bg-default)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.9rem'
+                    }}
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                    分辨率
+                  </label>
+                  <input
+                    type="text"
+                    name="resolution"
+                    value={formData.resolution}
+                    onChange={handleInputChange}
+                    placeholder="如: 1920x1080"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: '6px',
+                      background: 'var(--bg-default)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.9rem'
+                    }}
+                  />
+                </div>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                    帧率 (FPS)
+                  </label>
+                  <input
+                    type="number"
+                    name="fps"
+                    value={formData.fps}
+                    onChange={handleInputChange}
+                    placeholder="如: 30"
+                    min="1"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: '6px',
+                      background: 'var(--bg-default)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.9rem'
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                  <Button onClick={closeModal}>
+                    取消
+                  </Button>
+                  <Button type="primary" htmlType="submit">
+                    {modalMode === 'add' ? '添加' : '保存'}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        <style>{`
+          .devices-table .ant-table {
+            background: transparent !important;
+          }
+
+          .devices-table .ant-table-thead > tr > th {
+            background: var(--bg-secondary) !important;
+            border-bottom: 1px solid var(--border-default) !important;
+            color: var(--text-muted) !important;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+          }
+
+          .devices-table .ant-table-tbody > tr > td {
+            border-bottom: 1px solid var(--border-default) !important;
+            color: var(--text-primary);
+            padding: 14px 16px;
+          }
+
+          .devices-table .ant-table-tbody > tr:hover > td {
+            background: var(--bg-card-hover) !important;
+          }
+
+          .devices-table .ant-table-tbody > tr:last-child > td {
+            border-bottom: none !important;
+          }
+
+          .device-action-btn {
+            background: var(--bg-surface) !important;
+            border-color: var(--border-default) !important;
+            color: var(--text-secondary) !important;
+          }
+
+          .device-action-btn:hover:not(:disabled) {
+            background: var(--bg-card-hover) !important;
+            border-color: var(--border-hover) !important;
+            color: var(--text-primary) !important;
+          }
+        `}</style>
+      </div>
+    </ConfigProvider>
   );
 }
 

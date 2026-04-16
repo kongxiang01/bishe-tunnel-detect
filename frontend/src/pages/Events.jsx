@@ -51,6 +51,7 @@ export default function Events() {
   const [customTimeRange, setCustomTimeRange] = useState({ startTime: '', endTime: '' });
   const [statistics, setStatistics] = useState({ total: 0, pendingCount: 0, resolvedCount: 0 });
   const [processingId, setProcessingId] = useState(null);
+  const [replayModal, setReplayModal] = useState({ visible: false, event: null, loading: false, replayInfo: null });
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
@@ -160,6 +161,22 @@ export default function Events() {
     } finally {
       setProcessingId(null);
     }
+  };
+
+  const handleReplay = async (event) => {
+    setReplayModal({ visible: true, event, loading: true, replayInfo: null });
+    try {
+      const res = await axios.get(`${API_BASE}/events/${event.id}/replay`, { headers: getAuthHeaders() });
+      setReplayModal(prev => ({ ...prev, loading: false, replayInfo: res.data.data }));
+    } catch (error) {
+      console.error('获取回放信息失败:', error);
+      setReplayModal(prev => ({ ...prev, loading: false }));
+      alert('获取回放信息失败');
+    }
+  };
+
+  const closeReplayModal = () => {
+    setReplayModal({ visible: false, event: null, loading: false, replayInfo: null });
   };
 
   const handlePageChange = (newPage) => {
@@ -395,6 +412,15 @@ export default function Events() {
                   </div>
 
                   <div className="event-actions">
+                    <button
+                      className="action-btn replay-btn"
+                      onClick={() => handleReplay(event)}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                      </svg>
+                      回放
+                    </button>
                     {event.status === 'PENDING' && (
                       <button
                         className="action-btn process-btn"
@@ -445,6 +471,104 @@ export default function Events() {
               <polyline points="9 18 15 12 9 6"></polyline>
             </svg>
           </button>
+        </div>
+      )}
+
+      {/* 回放弹窗 */}
+      {replayModal.visible && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }} onClick={closeReplayModal}>
+          <div style={{
+            background: 'var(--bg-card)',
+            borderRadius: '12px',
+            padding: '24px',
+            width: '800px',
+            maxWidth: '90%',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0 }}>事件回放</h2>
+              <button
+                onClick={closeReplayModal}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '8px',
+                  color: 'var(--text-muted)'
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+
+            {replayModal.loading ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                加载回放信息...
+              </div>
+            ) : replayModal.replayInfo ? (
+              <>
+                <div style={{ marginBottom: '16px', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.9rem' }}>
+                    <div><span style={{ color: 'var(--text-muted)' }}>事件类型：</span>{EVENT_TYPE_LABELS[replayModal.replayInfo.eventType] || replayModal.replayInfo.eventType}</div>
+                    <div><span style={{ color: 'var(--text-muted)' }}>设备名称：</span>{replayModal.replayInfo.deviceName || '-'}</div>
+                    <div><span style={{ color: 'var(--text-muted)' }}>发生时间：</span>{formatDateTime(replayModal.replayInfo.eventTime)}</div>
+                    <div><span style={{ color: 'var(--text-muted)' }}>事件描述：</span>{replayModal.replayInfo.description}</div>
+                  </div>
+                </div>
+                <div style={{ marginBottom: '16px', padding: '8px', background: 'rgba(245,158,11,0.1)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--accent-warning)' }}>
+                  注意：MVP版本显示实时视频流。实际使用时将播放事件发生前后约20秒的历史录像。
+                </div>
+                <div style={{ position: 'relative', background: '#000', borderRadius: '8px', overflow: 'hidden' }}>
+                  <img
+                    src={replayModal.replayInfo.streamUrl}
+                    alt="事件回放"
+                    style={{ width: '100%', display: 'block' }}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                  />
+                  <div style={{
+                    display: 'none',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: '#1a1a1a',
+                    color: 'var(--text-muted)',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}>
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="8" x2="12" y2="12"></line>
+                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <span>视频加载失败</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--accent-danger)' }}>
+                无法加载回放信息
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -793,6 +917,18 @@ export default function Events() {
         .process-btn:disabled {
           opacity: 0.6;
           cursor: not-allowed;
+        }
+
+        .replay-btn {
+          background: rgba(59, 130, 246, 0.1);
+          border-color: rgba(59, 130, 246, 0.3);
+          color: var(--accent-secondary);
+        }
+
+        .replay-btn:hover {
+          background: rgba(59, 130, 246, 0.2);
+          border-color: var(--accent-secondary);
+          transform: translateY(-1px);
         }
 
         .btn-spinner {

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
+import { Table, ConfigProvider, theme } from 'antd';
 
 const STATISTICS_API = '/api/v1/statistics';
 
@@ -238,21 +239,11 @@ function EventPieChart({ distribution, loading, error }) {
   );
 }
 
-function TimeRangeBtn({ label, active, onClick }) {
-  return (
-    <button className={`header-btn time-range-btn ${active ? 'active' : ''}`} onClick={onClick}>
-      {label}
-    </button>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Main page component
 // ---------------------------------------------------------------------------
 
 export default function Statistics() {
-  const [timeRange, setTimeRange] = useState('今日');
-
   // Traffic API data
   const [trafficData, setTrafficData] = useState(null);
   const [trafficLoading, setTrafficLoading] = useState(true);
@@ -268,8 +259,6 @@ export default function Statistics() {
   const [deviceStats, setDeviceStats] = useState([]);
   const [devicesLoading, setDevicesLoading] = useState(true);
   const [devicesError, setDevicesError] = useState(null);
-
-  const timeRanges = ['今日', '本周', '本月', '本年'];
 
   useEffect(() => {
     // Set Authorization header from stored token (same pattern as Monitor.jsx)
@@ -336,6 +325,30 @@ export default function Statistics() {
       : `${trafficData?.onlineDevices ?? '--'}/${trafficData?.totalDevices ?? '--'}`;
 
   return (
+    <ConfigProvider
+      theme={{
+        algorithm: theme.darkAlgorithm,
+        token: {
+          colorPrimary: '#00d4ff',
+          colorBgContainer: '#1a2235',
+          colorBgElevated: '#1a2235',
+          colorBorder: '#2a3441',
+          colorText: '#f1f5f9',
+          colorTextSecondary: '#94a3b8',
+          colorTextTertiary: '#64748b',
+          borderRadius: 10,
+          fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
+        },
+        components: {
+          Table: {
+            headerBg: '#111827',
+            headerColor: '#94a3b8',
+            rowHoverBg: '#1f2940',
+            borderColor: '#2a3441',
+          },
+        },
+      }}
+    >
     <div className="page">
       <style>{`
         .stats-header {
@@ -358,40 +371,6 @@ export default function Statistics() {
           -webkit-text-fill-color: transparent;
           background-clip: text;
           letter-spacing: -0.02em;
-        }
-
-        .time-range-selector {
-          display: flex;
-          gap: var(--spacing-sm);
-        }
-
-        .time-range-btn {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-sm);
-          padding: var(--spacing-sm) var(--spacing-md);
-          background: var(--bg-surface);
-          border: 1px solid var(--border-default);
-          border-radius: var(--radius-md);
-          color: var(--text-secondary);
-          font-size: 0.875rem;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all var(--transition-fast);
-        }
-
-        .time-range-btn:hover {
-          background: var(--bg-card-hover);
-          border-color: var(--border-hover);
-          color: var(--text-primary);
-          transform: translateY(-1px);
-        }
-
-        .time-range-btn.active {
-          background: var(--accent-primary);
-          border-color: var(--accent-primary);
-          color: #000;
-          font-weight: 600;
         }
 
         .stats-grid {
@@ -620,6 +599,34 @@ export default function Statistics() {
           color: var(--accent-danger);
         }
 
+        .device-stats-table .ant-table {
+          background: transparent !important;
+        }
+
+        .device-stats-table .ant-table-thead > tr > th {
+          background: var(--bg-secondary) !important;
+          border-bottom: 1px solid var(--border-default) !important;
+          color: var(--text-muted) !important;
+          font-size: 0.8rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .device-stats-table .ant-table-tbody > tr > td {
+          border-bottom: 1px solid var(--border-default) !important;
+          color: var(--text-primary);
+          padding: 12px 16px;
+        }
+
+        .device-stats-table .ant-table-tbody > tr:hover > td {
+          background: var(--bg-card-hover) !important;
+        }
+
+        .device-stats-table .ant-table-tbody > tr:last-child > td {
+          border-bottom: none !important;
+        }
+
         @media (max-width: 1200px) {
           .stats-grid {
             grid-template-columns: repeat(2, 1fr);
@@ -646,11 +653,6 @@ export default function Statistics() {
       {/* Header */}
       <div className="stats-header">
         <h1>统计分析</h1>
-        <div className="time-range-selector">
-          {timeRanges.map((range) => (
-            <TimeRangeBtn key={range} label={range} active={timeRange === range} onClick={() => setTimeRange(range)} />
-          ))}
-        </div>
       </div>
 
       {/* Stat Cards */}
@@ -701,26 +703,44 @@ export default function Statistics() {
         ) : deviceStats.length === 0 ? (
           <div className="table-loading">暂无数据</div>
         ) : (
-          <table className="summary-table">
-            <thead>
-              <tr>
-                <th>设备名称</th>
-                <th>今日事件数</th>
-                <th>最后事件时间</th>
-              </tr>
-            </thead>
-            <tbody>
-              {deviceStats.map((item, index) => (
-                <tr key={index}>
-                  <td>{item.deviceName}</td>
-                  <td>{item.eventCount}</td>
-                  <td>{item.lastEventTime || '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Table
+            className="device-stats-table"
+            columns={[
+              {
+                title: '设备名称',
+                dataIndex: 'deviceName',
+                key: 'deviceName',
+                width: 150,
+                render: (text) => <span style={{ fontWeight: 500 }}>{text}</span>,
+              },
+              {
+                title: '今日车流量',
+                dataIndex: 'trafficCount',
+                key: 'trafficCount',
+                width: 120,
+                render: (val) => val ?? 0,
+              },
+              {
+                title: '今日事件数',
+                dataIndex: 'eventCount',
+                key: 'eventCount',
+                width: 100,
+              },
+              {
+                title: '最后事件时间',
+                dataIndex: 'lastEventTime',
+                key: 'lastEventTime',
+                width: 180,
+                render: (text) => text || '-',
+              },
+            ]}
+            dataSource={deviceStats.map((item) => ({ ...item, key: item.deviceId }))}
+            pagination={false}
+            size="small"
+          />
         )}
       </div>
     </div>
+    </ConfigProvider>
   );
 }
