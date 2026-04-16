@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -37,6 +38,10 @@ public class AuthController {
             String token = "mvp-token-" + UUID.randomUUID().toString();
             // Store token in user record
             user.setToken(token);
+            // 更新最后登录时间
+            user.setLastLogin(LocalDateTime.now());
+            // 确保用户状态为正常
+            user.setStatus("active");
             userRepository.save(user);
             return ResponseEntity.ok(ApiResponse.success("登录成功", new LoginResponse(token, user.getUsername(), "登录成功")));
         } else {

@@ -26,6 +26,14 @@ public class User {
     @Column(length = 100)
     private String token;
 
+    // 用户状态: active=正常, disabled=停用
+    @Column(length = 20)
+    private String status = "active";
+
+    // 最后登录时间
+    @Column(name = "last_login")
+    private LocalDateTime lastLogin;
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -73,5 +81,21 @@ public class User {
 
     public void setToken(String token) {
         this.token = token;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public LocalDateTime getLastLogin() {
+        return lastLogin;
+    }
+
+    public void setLastLogin(LocalDateTime lastLogin) {
+        this.lastLogin = lastLogin;
     }
 }

@@ -127,6 +127,10 @@ public class StatisticsController {
             }
         }
 
+        // 获取今日时间范围
+        LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
+        LocalDateTime endOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MAX);
+
         // 构建设备统计数据
         List<Map<String, Object>> deviceStats = new ArrayList<>();
         for (Device device : allDevices) {
@@ -137,6 +141,9 @@ public class StatisticsController {
             deviceStat.put("eventCount", eventCountByDevice.getOrDefault("device_" + device.getId(), 0L));
             LocalDateTime lastTime = lastEventTimeByDevice.get("device_" + device.getId());
             deviceStat.put("lastEventTime", lastTime != null ? lastTime.toString() : null);
+            // 设备今日车流量
+            long trafficCount = trafficRecordRepository.countTodayTrafficByDevice(device.getDeviceId(), startOfDay, endOfDay);
+            deviceStat.put("trafficCount", trafficCount);
             deviceStats.add(deviceStat);
         }
 

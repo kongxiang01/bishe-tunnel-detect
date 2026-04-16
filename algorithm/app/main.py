@@ -5,6 +5,8 @@ import asyncio
 import time
 from datetime import datetime
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.services.model_service import ModelService
@@ -13,6 +15,20 @@ from app.services.event_service import EventService
 from app.services.traffic_service import TrafficService
 
 app = FastAPI(title="Tunnel MVP Algorithm Service")
+
+# 解决跨域问题
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 挂载录制回放资源的静态目录
+# 允许前端通过 http://<algorithm-ip>:8000/replay/<deviceId>/<event_uuid>.mp4 来抓取视频
+os.makedirs(r"F:\workspace\graduation_project\algorithm\replay", exist_ok=True)
+app.mount("/replay", StaticFiles(directory=r"F:\workspace\graduation_project\algorithm\replay"), name="replay")
 
 # --- 初始化服务引擎 (全局单例) ---
 # 将庞大的深度学习引擎提至全局, tracker则每个连接独立
@@ -78,6 +94,9 @@ async def websocket_endpoint(websocket: WebSocket, stream_url: str = None, devic
             infer_cost_ms = (time.time() - infer_start) * 1000
             
             raw_dets = results.xyxy[0].tolist()
+
+            # 将当前帧推送至事件管理内置回放录制缓冲区
+            event_service.feed_frame(frame)
 
             # --- 步骤 2：帧间追踪分配 ---
             class_names = model_service.get_names()

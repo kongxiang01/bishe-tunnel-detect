@@ -63,6 +63,12 @@ public class EventController {
         if (request.getPlate() != null) {
             event.setPlate(request.getPlate());
         }
+        if (request.getVideoClipUrl() != null) {
+            event.setVideoClipUrl(request.getVideoClipUrl());
+        }
+        if (request.getImageUrl() != null) {
+            event.setImageUrl(request.getImageUrl());
+        }
 
         detectEventRepository.save(event);
         return ResponseEntity.ok(ApiResponse.success("Event uploaded successfully"));
@@ -185,6 +191,44 @@ public class EventController {
         long count = detectEventRepository.countByStatus("PENDING");
         return ResponseEntity.ok(ApiResponse.success(count));
     }
+
+    /**
+     * 获取事件回放信息
+     * 返回事件对应的设备视频流地址
+     * 注意：MVP版本返回实时流，实际使用时需要返回对应时间的历史视频
+     */
+    @GetMapping("/{id}/replay")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getEventReplay(@PathVariable Long id) {
+        Optional<DetectEvent> eventOpt = detectEventRepository.findById(id);
+
+        if (eventOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        DetectEvent event = eventOpt.get();
+        Map<String, Object> replayInfo = new HashMap<>();
+        replayInfo.put("eventId", event.getId());
+        replayInfo.put("eventTime", event.getEventTime() != null ? event.getEventTime().toString() : null);
+        replayInfo.put("eventType", event.getEventType());
+        replayInfo.put("description", event.getDescription());
+        replayInfo.put("deviceId", event.getDeviceId());
+        replayInfo.put("deviceName", event.getDeviceName());
+        replayInfo.put("videoClipUrl", event.getVideoClipUrl());
+        replayInfo.put("imageUrl", event.getImageUrl());
+
+        // MVP版本兼容：优先返回真实回放和快照。若没有，再降级返回实时流兜底
+        if (event.getVideoClipUrl() != null && !event.getVideoClipUrl().isEmpty()) {
+            replayInfo.put("streamUrl", event.getVideoClipUrl());
+        } else if (event.getDeviceId() != null && !event.getDeviceId().isEmpty()) {
+            String streamUrl = "http://localhost:5000/stream/" + event.getDeviceId();
+            replayInfo.put("streamUrl", streamUrl);
+        } else {
+            // 默认返回第一个摄像头
+            replayInfo.put("streamUrl", "http://localhost:5000/stream/camera_01");
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(replayInfo));
+    }
 }
 
 /**
@@ -199,6 +243,24 @@ class EventUploadRequest {
     private String severity;
     private String status;
     private String plate;
+    private String videoClipUrl;
+    private String imageUrl;
+
+    public String getVideoClipUrl() {
+        return videoClipUrl;
+    }
+
+    public void setVideoClipUrl(String videoClipUrl) {
+        this.videoClipUrl = videoClipUrl;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
 
     public String getEventType() {
         return eventType;

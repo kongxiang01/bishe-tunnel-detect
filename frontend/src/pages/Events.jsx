@@ -5,20 +5,27 @@ import '../styles.css';
 const API_BASE = '/api';
 
 // 注意：值必须与算法端 (event_service.py) 保持一致
-const EVENT_TYPES = ['全部', 'TRAFFIC_ACCIDENT', 'FIRE_DISASTER', 'PEDESTRIAN_INTRUSION', 'TRAFFIC_CONGESTION', 'other'];
+const EVENT_TYPES = [
+  '全部',
+  'TRAFFIC_ACCIDENT',
+  'FIRE_DISASTER',
+  'PEDESTRIAN_INTRUSION',
+  'TRAFFIC_CONGESTION',
+  'other',
+];
 const EVENT_TYPE_LABELS = {
-  '全部': '全部',
-  'TRAFFIC_ACCIDENT': '交通事故',
-  'FIRE_DISASTER': '火灾',
-  'PEDESTRIAN_INTRUSION': '行人闯入',
-  'TRAFFIC_CONGESTION': '拥堵',
-  'other': '其他'
+  全部: '全部',
+  TRAFFIC_ACCIDENT: '交通事故',
+  FIRE_DISASTER: '火灾',
+  PEDESTRIAN_INTRUSION: '行人闯入',
+  TRAFFIC_CONGESTION: '拥堵',
+  other: '其他',
 };
 
 const STATUS_OPTIONS = [
   { value: '', label: '全部' },
   { value: 'PENDING', label: '待处理' },
-  { value: 'RESOLVED', label: '已处理' }
+  { value: 'RESOLVED', label: '已处理' },
 ];
 
 const TIME_RANGES = [
@@ -26,7 +33,7 @@ const TIME_RANGES = [
   { value: 'today', label: '今日' },
   { value: 'week', label: '本周' },
   { value: 'month', label: '本月' },
-  { value: 'custom', label: '自定义' }
+  { value: 'custom', label: '自定义' },
 ];
 
 const PAGE_SIZE = 20;
@@ -46,7 +53,7 @@ export default function Events() {
   const [filters, setFilters] = useState({
     eventType: '全部',
     status: '',
-    timeRange: 'all'
+    timeRange: 'all',
   });
   const [customTimeRange, setCustomTimeRange] = useState({ startTime: '', endTime: '' });
   const [statistics, setStatistics] = useState({ total: 0, pendingCount: 0, resolvedCount: 0 });
@@ -67,75 +74,78 @@ export default function Events() {
     }
   }, []);
 
-  const fetchEvents = useCallback(async (page = 0) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      params.append('page', page.toString());
-      params.append('size', PAGE_SIZE.toString());
+  const fetchEvents = useCallback(
+    async (page = 0) => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        params.append('page', page.toString());
+        params.append('size', PAGE_SIZE.toString());
 
-      if (filters.eventType && filters.eventType !== '全部') {
-        params.append('type', filters.eventType);
+        if (filters.eventType && filters.eventType !== '全部') {
+          params.append('type', filters.eventType);
+        }
+        if (filters.status) {
+          params.append('status', filters.status);
+        }
+
+        // Time range handling
+        // 格式化日期为 yyyy-MM-dd HH:mm:ss
+        const formatDateTime = (date) => {
+          const pad = (n) => String(n).padStart(2, '0');
+          return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+        };
+
+        // 将 datetime-local 格式 (yyyy-MM-ddTHH:mm) 转换为后端格式 (yyyy-MM-dd HH:mm:ss)
+        const convertLocalDateTime = (value) => {
+          if (!value) return null;
+          // datetime-local 格式: yyyy-MM-ddTHH:mm
+          return value.replace('T', ' ') + ':00';
+        };
+
+        if (filters.timeRange === 'custom') {
+          if (customTimeRange.startTime) params.append('startTime', convertLocalDateTime(customTimeRange.startTime));
+          if (customTimeRange.endTime) params.append('endTime', convertLocalDateTime(customTimeRange.endTime));
+        } else if (filters.timeRange === 'today') {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          params.append('startTime', formatDateTime(today));
+        } else if (filters.timeRange === 'week') {
+          const today = new Date();
+          const dayOfWeek = today.getDay();
+          const startOfWeek = new Date(today);
+          startOfWeek.setDate(today.getDate() - dayOfWeek);
+          startOfWeek.setHours(0, 0, 0, 0);
+          params.append('startTime', formatDateTime(startOfWeek));
+        } else if (filters.timeRange === 'month') {
+          const today = new Date();
+          const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+          startOfMonth.setHours(0, 0, 0, 0);
+          params.append('startTime', formatDateTime(startOfMonth));
+        }
+        // 'all' - no time filter, show all events
+
+        const res = await axios.get(`${API_BASE}/events/list?${params.toString()}`, {
+          headers: getAuthHeaders(),
+        });
+
+        // Handle both array and paginated response
+        const apiData = res.data.data || {};
+        const data = Array.isArray(apiData) ? apiData : apiData.content || apiData.list || [];
+        const total = apiData.totalElements || apiData.total || data.length;
+        const totalPages = apiData.totalPages || Math.ceil(total / PAGE_SIZE);
+
+        setEvents(data);
+        setPagination({ page, size: PAGE_SIZE, total, totalPages });
+      } catch (error) {
+        console.error('获取事件列表失败:', error);
+        setEvents([]);
+      } finally {
+        setLoading(false);
       }
-      if (filters.status) {
-        params.append('status', filters.status);
-      }
-
-      // Time range handling
-      // 格式化日期为 yyyy-MM-dd HH:mm:ss
-      const formatDateTime = (date) => {
-        const pad = (n) => String(n).padStart(2, '0');
-        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-      };
-
-      // 将 datetime-local 格式 (yyyy-MM-ddTHH:mm) 转换为后端格式 (yyyy-MM-dd HH:mm:ss)
-      const convertLocalDateTime = (value) => {
-        if (!value) return null;
-        // datetime-local 格式: yyyy-MM-ddTHH:mm
-        return value.replace('T', ' ') + ':00';
-      };
-
-      if (filters.timeRange === 'custom') {
-        if (customTimeRange.startTime) params.append('startTime', convertLocalDateTime(customTimeRange.startTime));
-        if (customTimeRange.endTime) params.append('endTime', convertLocalDateTime(customTimeRange.endTime));
-      } else if (filters.timeRange === 'today') {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        params.append('startTime', formatDateTime(today));
-      } else if (filters.timeRange === 'week') {
-        const today = new Date();
-        const dayOfWeek = today.getDay();
-        const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - dayOfWeek);
-        startOfWeek.setHours(0, 0, 0, 0);
-        params.append('startTime', formatDateTime(startOfWeek));
-      } else if (filters.timeRange === 'month') {
-        const today = new Date();
-        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        startOfMonth.setHours(0, 0, 0, 0);
-        params.append('startTime', formatDateTime(startOfMonth));
-      }
-      // 'all' - no time filter, show all events
-
-      const res = await axios.get(`${API_BASE}/events/list?${params.toString()}`, {
-        headers: getAuthHeaders()
-      });
-
-      // Handle both array and paginated response
-      const apiData = res.data.data || {};
-      const data = Array.isArray(apiData) ? apiData : (apiData.content || apiData.list || []);
-      const total = apiData.totalElements || apiData.total || data.length;
-      const totalPages = apiData.totalPages || Math.ceil(total / PAGE_SIZE);
-
-      setEvents(data);
-      setPagination({ page, size: PAGE_SIZE, total, totalPages });
-    } catch (error) {
-      console.error('获取事件列表失败:', error);
-      setEvents([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, customTimeRange]);
+    },
+    [filters, customTimeRange]
+  );
 
   useEffect(() => {
     fetchStatistics();
@@ -167,10 +177,10 @@ export default function Events() {
     setReplayModal({ visible: true, event, loading: true, replayInfo: null });
     try {
       const res = await axios.get(`${API_BASE}/events/${event.id}/replay`, { headers: getAuthHeaders() });
-      setReplayModal(prev => ({ ...prev, loading: false, replayInfo: res.data.data }));
+      setReplayModal((prev) => ({ ...prev, loading: false, replayInfo: res.data.data }));
     } catch (error) {
       console.error('获取回放信息失败:', error);
-      setReplayModal(prev => ({ ...prev, loading: false }));
+      setReplayModal((prev) => ({ ...prev, loading: false }));
       alert('获取回放信息失败');
     }
   };
@@ -187,9 +197,9 @@ export default function Events() {
 
   const getSeverityBadge = (severity) => {
     const config = {
-      '严重': { bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: 'rgba(239, 68, 68, 0.3)', label: '严重' },
-      '警告': { bg: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: 'rgba(245, 158, 11, 0.3)', label: '警告' },
-      '普通': { bg: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4', border: 'rgba(6, 182, 212, 0.3)', label: '普通' }
+      严重: { bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: 'rgba(239, 68, 68, 0.3)', label: '严重' },
+      警告: { bg: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: 'rgba(245, 158, 11, 0.3)', label: '警告' },
+      普通: { bg: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4', border: 'rgba(6, 182, 212, 0.3)', label: '普通' },
     };
     const style = config[severity] || config['普通'];
     return (
@@ -202,9 +212,7 @@ export default function Events() {
   const getStatusBadge = (status) => {
     const isPending = status === 'PENDING';
     return (
-      <span className={`status-badge ${isPending ? 'pending' : 'resolved'}`}>
-        {isPending ? '待处理' : '已处理'}
-      </span>
+      <span className={`status-badge ${isPending ? 'pending' : 'resolved'}`}>{isPending ? '待处理' : '已处理'}</span>
     );
   };
 
@@ -220,11 +228,7 @@ export default function Events() {
 
     for (let i = start; i <= end; i++) {
       pages.push(
-        <button
-          key={i}
-          className={`pagination-btn ${page === i ? 'active' : ''}`}
-          onClick={() => handlePageChange(i)}
-        >
+        <button key={i} className={`pagination-btn ${page === i ? 'active' : ''}`} onClick={() => handlePageChange(i)}>
           {i + 1}
         </button>
       );
@@ -238,7 +242,13 @@ export default function Events() {
       <header className="top">
         <h1>事件中心</h1>
         <div className="header-controls">
-          <button className="header-btn" onClick={() => { fetchEvents(pagination.page); fetchStatistics(); }}>
+          <button
+            className="header-btn"
+            onClick={() => {
+              fetchEvents(pagination.page);
+              fetchStatistics();
+            }}
+          >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="23 4 23 10 17 10"></polyline>
               <polyline points="1 20 1 14 7 14"></polyline>
@@ -272,14 +282,24 @@ export default function Events() {
           <div className="filter-dropdown">
             <select
               value={filters.eventType}
-              onChange={(e) => setFilters(f => ({ ...f, eventType: e.target.value }))}
+              onChange={(e) => setFilters((f) => ({ ...f, eventType: e.target.value }))}
               className="filter-select"
             >
-              {EVENT_TYPES.map(type => (
-                <option key={type} value={type}>{EVENT_TYPE_LABELS[type]}</option>
+              {EVENT_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {EVENT_TYPE_LABELS[type]}
+                </option>
               ))}
             </select>
-            <svg className="dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              className="dropdown-arrow"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
           </div>
@@ -290,14 +310,24 @@ export default function Events() {
           <div className="filter-dropdown">
             <select
               value={filters.status}
-              onChange={(e) => setFilters(f => ({ ...f, status: e.target.value }))}
+              onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
               className="filter-select"
             >
-              {STATUS_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
               ))}
             </select>
-            <svg className="dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              className="dropdown-arrow"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
           </div>
@@ -308,14 +338,24 @@ export default function Events() {
           <div className="filter-dropdown">
             <select
               value={filters.timeRange}
-              onChange={(e) => setFilters(f => ({ ...f, timeRange: e.target.value }))}
+              onChange={(e) => setFilters((f) => ({ ...f, timeRange: e.target.value }))}
               className="filter-select"
             >
-              {TIME_RANGES.map(range => (
-                <option key={range.value} value={range.value}>{range.label}</option>
+              {TIME_RANGES.map((range) => (
+                <option key={range.value} value={range.value}>
+                  {range.label}
+                </option>
               ))}
             </select>
-            <svg className="dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              className="dropdown-arrow"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
           </div>
@@ -328,7 +368,7 @@ export default function Events() {
               <input
                 type="datetime-local"
                 value={customTimeRange.startTime}
-                onChange={(e) => setCustomTimeRange(r => ({ ...r, startTime: e.target.value }))}
+                onChange={(e) => setCustomTimeRange((r) => ({ ...r, startTime: e.target.value }))}
                 className="filter-input"
               />
             </div>
@@ -337,7 +377,7 @@ export default function Events() {
               <input
                 type="datetime-local"
                 value={customTimeRange.endTime}
-                onChange={(e) => setCustomTimeRange(r => ({ ...r, endTime: e.target.value }))}
+                onChange={(e) => setCustomTimeRange((r) => ({ ...r, endTime: e.target.value }))}
                 className="filter-input"
               />
             </div>
@@ -373,8 +413,14 @@ export default function Events() {
                 key={event.id}
                 className="event-card-full"
                 style={{
-                  '--severity-color': event.severity === '严重' ? '#ef4444' : event.severity === '警告' ? '#f59e0b' : '#06b6d4',
-                  '--severity-glow': event.severity === '严重' ? '0 0 15px rgba(239, 68, 68, 0.3)' : event.severity === '警告' ? '0 0 15px rgba(245, 158, 11, 0.3)' : '0 0 15px rgba(6, 182, 212, 0.3)'
+                  '--severity-color':
+                    event.severity === '严重' ? '#ef4444' : event.severity === '警告' ? '#f59e0b' : '#06b6d4',
+                  '--severity-glow':
+                    event.severity === '严重'
+                      ? '0 0 15px rgba(239, 68, 68, 0.3)'
+                      : event.severity === '警告'
+                        ? '0 0 15px rgba(245, 158, 11, 0.3)'
+                        : '0 0 15px rgba(6, 182, 212, 0.3)',
                 }}
               >
                 <div className="severity-indicator">
@@ -384,9 +430,7 @@ export default function Events() {
                 <div className="event-main">
                   <div className="event-info">
                     <div className="event-header-row">
-                      <span className="event-type-badge">
-                        {getEventTypeLabel(event.eventType)}
-                      </span>
+                      <span className="event-type-badge">{getEventTypeLabel(event.eventType)}</span>
                       {getSeverityBadge(event.severity)}
                       {getStatusBadge(event.status)}
                     </div>
@@ -412,10 +456,7 @@ export default function Events() {
                   </div>
 
                   <div className="event-actions">
-                    <button
-                      className="action-btn replay-btn"
-                      onClick={() => handleReplay(event)}
-                    >
+                    <button className="action-btn replay-btn" onClick={() => handleReplay(event)}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <polygon points="5 3 19 12 5 21 5 3"></polygon>
                       </svg>
@@ -430,7 +471,14 @@ export default function Events() {
                         {processingId === event.id ? (
                           <span className="btn-spinner"></span>
                         ) : (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
                             <polyline points="20 6 9 17 4 12"></polyline>
                           </svg>
                         )}
@@ -458,9 +506,7 @@ export default function Events() {
             </svg>
             上一页
           </button>
-          <div className="page-numbers">
-            {renderPageNumbers()}
-          </div>
+          <div className="page-numbers">{renderPageNumbers()}</div>
           <button
             className="pagination-btn nav-btn"
             disabled={pagination.page >= pagination.totalPages - 1}
@@ -476,28 +522,36 @@ export default function Events() {
 
       {/* 回放弹窗 */}
       {replayModal.visible && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }} onClick={closeReplayModal}>
-          <div style={{
-            background: 'var(--bg-card)',
-            borderRadius: '12px',
-            padding: '24px',
-            width: '800px',
-            maxWidth: '90%',
-            maxHeight: '90vh',
-            overflow: 'auto'
-          }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={closeReplayModal}
+        >
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              borderRadius: '12px',
+              padding: '24px',
+              width: '800px',
+              maxWidth: '90%',
+              maxHeight: '90vh',
+              overflow: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}
+            >
               <h2 style={{ margin: 0 }}>事件回放</h2>
               <button
                 onClick={closeReplayModal}
@@ -506,7 +560,7 @@ export default function Events() {
                   border: 'none',
                   cursor: 'pointer',
                   padding: '8px',
-                  color: 'var(--text-muted)'
+                  color: 'var(--text-muted)',
                 }}
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -517,49 +571,104 @@ export default function Events() {
             </div>
 
             {replayModal.loading ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                加载回放信息...
-              </div>
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>加载回放信息...</div>
             ) : replayModal.replayInfo ? (
               <>
-                <div style={{ marginBottom: '16px', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
+                <div
+                  style={{
+                    marginBottom: '16px',
+                    padding: '12px',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '8px',
+                  }}
+                >
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.9rem' }}>
-                    <div><span style={{ color: 'var(--text-muted)' }}>事件类型：</span>{EVENT_TYPE_LABELS[replayModal.replayInfo.eventType] || replayModal.replayInfo.eventType}</div>
-                    <div><span style={{ color: 'var(--text-muted)' }}>设备名称：</span>{replayModal.replayInfo.deviceName || '-'}</div>
-                    <div><span style={{ color: 'var(--text-muted)' }}>发生时间：</span>{formatDateTime(replayModal.replayInfo.eventTime)}</div>
-                    <div><span style={{ color: 'var(--text-muted)' }}>事件描述：</span>{replayModal.replayInfo.description}</div>
+                    <div>
+                      <span style={{ color: 'var(--text-muted)' }}>事件类型：</span>
+                      {EVENT_TYPE_LABELS[replayModal.replayInfo.eventType] || replayModal.replayInfo.eventType}
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-muted)' }}>设备名称：</span>
+                      {replayModal.replayInfo.deviceName || '-'}
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-muted)' }}>发生时间：</span>
+                      {formatDateTime(replayModal.replayInfo.eventTime)}
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-muted)' }}>事件描述：</span>
+                      {replayModal.replayInfo.description}
+                    </div>
                   </div>
                 </div>
-                <div style={{ marginBottom: '16px', padding: '8px', background: 'rgba(245,158,11,0.1)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--accent-warning)' }}>
-                  注意：MVP版本显示实时视频流。实际使用时将播放事件发生前后约20秒的历史录像。
+                <div
+                  style={{
+                    marginBottom: '16px',
+                    padding: '8px',
+                    background: 'rgba(245,158,11,0.1)',
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                    color: 'var(--accent-warning)',
+                  }}
+                >
+                  注意：若存在历史切片将优先播放历史录像，否则降级显示设备实时流。
                 </div>
-                <div style={{ position: 'relative', background: '#000', borderRadius: '8px', overflow: 'hidden' }}>
-                  <img
-                    src={replayModal.replayInfo.streamUrl}
-                    alt="事件回放"
-                    style={{ width: '100%', display: 'block' }}
-                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-                  />
-                  <div style={{
-                    display: 'none',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: '#1a1a1a',
-                    color: 'var(--text-muted)',
-                    flexDirection: 'column',
-                    gap: '12px'
-                  }}>
+                <div
+                  style={{
+                    position: 'relative',
+                    background: '#000',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    minHeight: '300px',
+                  }}
+                >
+                  {replayModal.replayInfo.streamUrl &&
+                  (replayModal.replayInfo.streamUrl.endsWith('.mp4') ||
+                    replayModal.replayInfo.streamUrl.endsWith('.webm')) ? (
+                    <video
+                      src={replayModal.replayInfo.streamUrl}
+                      controls
+                      autoPlay
+                      loop
+                      style={{ width: '100%', display: 'block' }}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : (
+                    <img
+                      src={replayModal.replayInfo.streamUrl}
+                      alt="事件回放"
+                      style={{ width: '100%', display: 'block' }}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  )}
+                  <div
+                    style={{
+                      display: 'none',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: '#1a1a1a',
+                      color: 'var(--text-muted)',
+                      flexDirection: 'column',
+                      gap: '12px',
+                    }}
+                  >
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <circle cx="12" cy="12" r="10"></circle>
                       <line x1="12" y1="8" x2="12" y2="12"></line>
                       <line x1="12" y1="16" x2="12.01" y2="16"></line>
                     </svg>
-                    <span>视频加载失败</span>
+                    <span>视频流加载失败</span>
                   </div>
                 </div>
               </>

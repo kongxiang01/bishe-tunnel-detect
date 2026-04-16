@@ -29,6 +29,7 @@ __pycache__/
 claude-code-输出
 *.pdf
 .claude
+
 # Python environment
 venv/
 .env
@@ -55,3 +56,5 @@ algorithm/ByteTrack/build/
 algorithm/ByteTrack/dist/
 algorithm/ByteTrack/*.egg-info/
 algorithm/ByteTrack/__pycache__/
+
+algorithm/replay

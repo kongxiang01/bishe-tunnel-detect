@@ -62,6 +62,18 @@ public class DetectEvent {
     @Column(length = 20)
     private String plate;
 
+    /**
+     * 回溯录像切片地址
+     */
+    @Column(name = "video_clip_url", length = 500)
+    private String videoClipUrl;
+
+    /**
+     * 异常发生瞬间快照地址
+     */
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -141,5 +153,21 @@ public class DetectEvent {
 
     public void setPlate(String plate) {
         this.plate = plate;
+    }
+
+    public String getVideoClipUrl() {
+        return videoClipUrl;
+    }
+
+    public void setVideoClipUrl(String videoClipUrl) {
+        this.videoClipUrl = videoClipUrl;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 }

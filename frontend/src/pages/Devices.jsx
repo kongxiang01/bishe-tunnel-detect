@@ -130,7 +130,7 @@ function Devices() {
       title: '设备ID',
       dataIndex: 'deviceId',
       key: 'deviceId',
-      width: 180,
+      width: 260,
       render: (text) => (
         <span style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
           {text}

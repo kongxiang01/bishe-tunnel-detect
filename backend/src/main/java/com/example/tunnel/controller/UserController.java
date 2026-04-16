@@ -37,6 +37,9 @@ public class UserController {
                 existing.setPassword(user.getPassword());
             }
             existing.setRole(user.getRole());
+            if (user.getStatus() != null) {
+                existing.setStatus(user.getStatus());
+            }
             return ResponseEntity.ok(ApiResponse.success(userRepository.save(existing)));
         }).orElse(ResponseEntity.notFound().build());
     }

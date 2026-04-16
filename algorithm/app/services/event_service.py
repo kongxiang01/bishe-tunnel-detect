@@ -1,20 +1,29 @@
 import time
 import requests
 import threading
+import uuid
 from datetime import datetime
 from app.core.config import settings
+from app.services.replay_service import ReplayService
 
-def send_event_to_backend(track_id, event_type, message, device_id=None, device_name=None):
+def send_event_to_backend(track_id, event_type, message, device_id=None, device_name=None, event_uuid=None):
     """
     异步发送事件到 Spring Boot 后端
     """
     url = "http://localhost:8080/api/events/upload"
+    
+    # 填充生成好的回放URL
+    video_url = f"http://127.0.0.1:8000/replay/{device_id}/{event_uuid}.webm" if event_uuid else None
+    image_url = f"http://127.0.0.1:8000/replay/{device_id}/{event_uuid}.jpg" if event_uuid else None
+
     payload = {
         "eventType": event_type,
         "description": message,
         "trackId": track_id,
         "deviceId": device_id,
-        "deviceName": device_name
+        "deviceName": device_name,
+        "videoClipUrl": video_url,
+        "imageUrl": image_url
     }
     try:
         # Timeout 限制避免拥满算法帧率
@@ -40,6 +49,11 @@ class EventService:
         # 当前设备的标识信息
         self.device_id = device_id
         self.device_name = device_name
+        self.replay_service = ReplayService(device_id=device_id)
+
+    def feed_frame(self, frame):
+        """将当前帧馈送到回溯服务"""
+        self.replay_service.add_frame(frame)
         
     def process_events(self, detections):
         """
@@ -94,9 +108,12 @@ class EventService:
                         # 立刻刷新这个类型事件的最后触发时间
                         self.event_type_cooldowns[class_name] = current_time
                         
+                        event_uuid = str(uuid.uuid4())
+                        self.replay_service.trigger_record(event_uuid)
+
                         threading.Thread(
                             target=send_event_to_backend,
-                            args=(tid, event_type, event_msg, self.device_id, self.device_name),
+                            args=(tid, event_type, event_msg, self.device_id, self.device_name, event_uuid),
                             daemon=True
                         ).start()
 
@@ -104,7 +121,8 @@ class EventService:
                             "type": event_type.lower(),
                             "track_id": tid, # 前端可以用这个值来标亮当下的危险框
                             "message": event_msg,
-                            "timestamp": int(current_time * 1000)
+                            "timestamp": int(current_time * 1000),
+                            "event_uuid": event_uuid
                         })
                         print(f"[{datetime.now().strftime('%H:%M:%S')}] 🚨 EventService: {event_msg}")
 
@@ -153,9 +171,12 @@ class EventService:
                         self.last_congestion_alert = current_time
                         event_msg = f"🐌 交通拥堵：识别到多车缓行阻塞 (车辆数:{N}, 指数:{congestion_index:.2f})"
                         
+                        event_uuid = str(uuid.uuid4())
+                        self.replay_service.trigger_record(event_uuid)
+
                         threading.Thread(
                             target=send_event_to_backend,
-                            args=(0, "TRAFFIC_CONGESTION", event_msg, self.device_id, self.device_name),
+                            args=(0, "TRAFFIC_CONGESTION", event_msg, self.device_id, self.device_name, event_uuid),
                             daemon=True
                         ).start()
                         
@@ -163,7 +184,8 @@ class EventService:
                             "type": "traffic_congestion",
                             "track_id": 0,
                             "message": event_msg,
-                            "timestamp": int(current_time * 1000)
+                            "timestamp": int(current_time * 1000),
+                            "event_uuid": event_uuid
                         })
                         print(f"[{datetime.now().strftime('%H:%M:%S')}] 🚨 EventService: {event_msg}")
 

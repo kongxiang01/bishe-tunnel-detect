@@ -49,10 +49,6 @@ def capture_video(cam_id, video_file):
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
             continue
 
-        # 为了区分多路不同摄像头，在左上角打上水印
-        cv2.putText(frame, f"DEVICE: {cam_id.upper()}", (20, 40),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-
         ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
         cameras[cam_id]["frame"] = buffer.tobytes()
 
