@@ -34,28 +34,28 @@ def capture_video(cam_id, video_file):
     cap = cv2.VideoCapture(video_file)
     original_fps = cap.get(cv2.CAP_PROP_FPS)
     if original_fps == 0: original_fps = 30.0
-    
+
     frame_step = max(1, int(original_fps / TARGET_FPS))
     delay = 1.0 / TARGET_FPS
 
     while True:
         start_time = time.time()
-        
+
         for _ in range(frame_step - 1):
             cap.grab()
-            
+
         success, frame = cap.read()
         if not success:
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
             continue
-        
+
         # 为了区分多路不同摄像头，在左上角打上水印
-        cv2.putText(frame, f"DEVICE: {cam_id.upper()}", (20, 40), 
+        cv2.putText(frame, f"DEVICE: {cam_id.upper()}", (20, 40),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-        
+
         ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
         cameras[cam_id]["frame"] = buffer.tobytes()
-        
+
         elapsed = time.time() - start_time
         sleep_time = delay - elapsed
         if sleep_time > 0:

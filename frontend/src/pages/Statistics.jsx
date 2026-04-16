@@ -396,7 +396,7 @@ export default function Statistics() {
 
         .stats-grid {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: repeat(3, 1fr);
           gap: var(--spacing-lg);
           margin-bottom: var(--spacing-lg);
         }
@@ -675,14 +675,6 @@ export default function Statistics() {
           icon="📹"
           title="设备总数"
           value={trafficLoading || trafficError ? null : (trafficData?.totalDevices ?? null)}
-          unit="台"
-          loading={trafficLoading}
-          error={trafficError}
-        />
-        <StatCard
-          icon="🟢"
-          title="在线设备"
-          value={trafficLoading || trafficError ? null : (trafficData?.onlineDevices ?? null)}
           unit="台"
           loading={trafficLoading}
           error={trafficError}

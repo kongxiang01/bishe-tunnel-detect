@@ -12,6 +12,7 @@ export default function CameraStream({ device, isDetecting, onEvent, style }) {
 
     if (isDetecting && device?.streamUrl) {
       const targetUrl = encodeURIComponent(device.streamUrl);
+      // console.log('2222',device.deviceId, device.streamUrl)
       ws = new WebSocket(`${ALGO_WS}?stream_url=${targetUrl}&device_id=${encodeURIComponent(device.deviceId)}&device_name=${encodeURIComponent(device.name)}`);
 
       ws.onopen = () => {
