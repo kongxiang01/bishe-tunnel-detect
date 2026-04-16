@@ -20,9 +20,6 @@ public class TrafficRecord {
     @Column(name = "device_id")
     private String deviceId;
 
-    @Column(name = "vehicle_type")
-    private String vehicleType;
-
     @Column(name = "track_id")
     private Integer trackId;
 

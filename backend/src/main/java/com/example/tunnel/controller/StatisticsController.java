@@ -44,7 +44,7 @@ public class StatisticsController {
 
     /**
      * 获取交通流量统计数据
-     * MVP: 返回今日车流量以及模拟生成的24小时数据趋势
+     * MVP: 返回今日真实车流量记录以及24小时数据趋势
      */
     @GetMapping("/traffic")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getTrafficStatistics() {
@@ -66,15 +66,22 @@ public class StatisticsController {
         result.put("onlineDevices", onlineDevices);
         result.put("totalDevices", totalDevices);
 
-        // 生成24小时模拟数据
+        // 获取2真实24小时数据趋势
+        List<Object[]> hourlyRecords = trafficRecordRepository.countHourlyTrafficToday(startOfDay, endOfDay);
+        Map<Integer, Long> hourCountMap = new HashMap<>();
+        for (Object[] row : hourlyRecords) {
+            Number hr = (Number) row[0];
+            Number cnt = (Number) row[1];
+            if (hr != null && cnt != null) {
+                hourCountMap.put(hr.intValue(), cnt.longValue());
+            }
+        }
+
         List<Map<String, Object>> hourlyData = new ArrayList<>();
-        Random random = new Random();
         for (int hour = 0; hour < 24; hour++) {
             Map<String, Object> hourEntry = new HashMap<>();
             hourEntry.put("hour", hour);
-            // 模拟高峰时段（7-9, 17-19）车流量较大
-            int baseCount = (hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19) ? 80 : 30;
-            hourEntry.put("count", baseCount + random.nextInt(20));
+            hourEntry.put("count", hourCountMap.getOrDefault(hour, 0L));
             hourlyData.add(hourEntry);
         }
         result.put("hourlyData", hourlyData);

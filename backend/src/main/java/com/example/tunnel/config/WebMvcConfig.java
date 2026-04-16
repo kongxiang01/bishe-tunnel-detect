@@ -16,6 +16,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
         // 添加认证拦截器
         registry.addInterceptor(authInterceptor)
                 .addPathPatterns("/api/**")         // 拦截全部 API
-                .excludePathPatterns("/api/auth/**", "/api/health", "/api/events/upload"); // 排除登录、健康检查、算法端告警上传
+                .excludePathPatterns("/api/auth/**", "/api/health", "/api/events/upload", "/api/stream/**"); // 排除登录、健康检查、算法端告警/车流上传
     }
 }

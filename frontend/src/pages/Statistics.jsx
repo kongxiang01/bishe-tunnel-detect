@@ -9,8 +9,7 @@ const STATISTICS_API = '/api/v1/statistics';
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function StatCard({ icon, title, value, unit, trend, trendValue, loading, error }) {
-  const isPositive = trend === 'up';
+function StatCard({ icon, title, value, unit, loading, error }) {
   const displayValue = loading ? '--' : error ? '--' : value;
 
   return (
@@ -21,10 +20,6 @@ function StatCard({ icon, title, value, unit, trend, trendValue, loading, error 
         <div className="stat-value">
           {displayValue}
           <span className="stat-unit">{unit}</span>
-        </div>
-        <div className={`stat-trend ${isPositive ? 'positive' : 'negative'}`}>
-          <span className="trend-arrow">{isPositive ? '↑' : '↓'}</span>
-          <span className="trend-value">{error ? '获取失败' : trendValue}</span>
         </div>
       </div>
     </div>
@@ -459,27 +454,6 @@ export default function Statistics() {
           margin-left: var(--spacing-xs);
         }
 
-        .stat-trend {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          margin-top: var(--spacing-xs);
-          font-size: 0.75rem;
-          font-weight: 600;
-          padding: 2px 8px;
-          border-radius: 999px;
-        }
-
-        .stat-trend.positive {
-          background: rgba(16, 185, 129, 0.15);
-          color: var(--accent-success);
-        }
-
-        .stat-trend.negative {
-          background: rgba(239, 68, 68, 0.15);
-          color: var(--accent-danger);
-        }
-
         .charts-grid {
           display: grid;
           grid-template-columns: 1.5fr 1fr;
@@ -686,8 +660,6 @@ export default function Statistics() {
           title="今日车流量"
           value={trafficLoading || trafficError ? null : (trafficData?.todayTraffic ?? null)}
           unit="辆"
-          trend="up"
-          trendValue="+12.5%"
           loading={trafficLoading}
           error={trafficError}
         />
@@ -696,8 +668,6 @@ export default function Statistics() {
           title="事件总数"
           value={eventsLoading || eventsError ? null : totalEvents}
           unit="起"
-          trend="down"
-          trendValue={eventsError ? '获取失败' : eventsLoading ? '...' : '-8.3%'}
           loading={eventsLoading}
           error={eventsError}
         />
@@ -706,8 +676,6 @@ export default function Statistics() {
           title="设备总数"
           value={trafficLoading || trafficError ? null : (trafficData?.totalDevices ?? null)}
           unit="台"
-          trend="up"
-          trendValue="稳定"
           loading={trafficLoading}
           error={trafficError}
         />
@@ -716,8 +684,6 @@ export default function Statistics() {
           title="在线设备"
           value={trafficLoading || trafficError ? null : (trafficData?.onlineDevices ?? null)}
           unit="台"
-          trend="up"
-          trendValue="在线"
           loading={trafficLoading}
           error={trafficError}
         />

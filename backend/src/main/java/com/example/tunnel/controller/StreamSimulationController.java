@@ -41,7 +41,6 @@ public class StreamSimulationController {
     public String receiveTrafficCount(@RequestBody Map<String, Object> payload) {
         TrafficRecord record = new TrafficRecord();
         record.setDeviceId((String) payload.getOrDefault("deviceId", "cam_default"));
-        record.setVehicleType((String) payload.getOrDefault("vehicleType", "vehicle"));
         
         Object trackIdObj = payload.get("trackId");
         if (trackIdObj != null) {

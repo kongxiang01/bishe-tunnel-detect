@@ -3,18 +3,18 @@ import requests
 import threading
 from app.core.config import settings
 
-def send_traffic_count_to_backend(track_id, vehicle_type, device_id):
+def send_traffic_count_to_backend(track_id, device_id):
     """
     异步发送车辆撞线数据到 Spring Boot 后端
     """
     url = "http://localhost:8080/api/stream/traffic/count"
     payload = {
         "trackId": track_id,
-        "vehicleType": vehicle_type,
         "deviceId": device_id
     }
     try:
-        requests.post(url, json=payload, timeout=2.0)
+        response = requests.post(url, json=payload, timeout=2.0)
+        response.raise_for_status()
     except Exception as e:
         print(f"⚠️ [警告] 发送车流计数 {track_id} 到后端失败: {e}")
 
@@ -53,7 +53,7 @@ class TrafficService:
                     print(f"[{time.strftime('%H:%M:%S')}] 🚙 车辆越线计数: track_id={tid}, device_id={self.device_id}")
                     threading.Thread(
                         target=send_traffic_count_to_backend,
-                        args=(tid, class_name, self.device_id),
+                        args=(tid, "cam_default"),
                         daemon=True
                     ).start()
         

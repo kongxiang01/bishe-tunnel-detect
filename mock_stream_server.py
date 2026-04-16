@@ -24,7 +24,7 @@ cameras = {
     "camera_01": {"frame": None, "file": "隧道合集2.mp4"},
     "camera_02": {"frame": None, "file": "mock-video-0.mp4"},
     "camera_03": {"frame": None, "file": "起火精简版.mp4"},
-    "camera_04": {"frame": None, "file": "隧道3.mp4"},
+    "camera_04": {"frame": None, "file": "普通道路.mp4"},
 }
 
 def capture_video(cam_id, video_file):

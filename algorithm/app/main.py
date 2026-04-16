@@ -93,7 +93,7 @@ async def websocket_endpoint(websocket: WebSocket, stream_url: str = None, devic
 
             # --- 步骤 3.5：业务逻辑 -> 车流量撞线计数 ---
             # 默认将撞线高度设为画面高度的 60% (也可以提取到 config 中配置)
-            line_y = height * 0.6 if height > 0 else 300
+            line_y = height * 0.5 if height > 0 else 300
             traffic_service.process_traffic(detections, line_y)
 
             # --- 步骤 4：引擎日志与 Socket 推送 ---
