@@ -154,7 +154,7 @@ function Devices() {
                 <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>设备名称</th>
                 <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>设备ID</th>
                 <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>位置</th>
-                <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>状态</th>
+                <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>流地址</th>
                 <th style={{ textAlign: 'left', padding: '12px 16px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>操作</th>
               </tr>
             </thead>
@@ -166,10 +166,8 @@ function Devices() {
                   <td style={{ padding: '16px', color: 'var(--text-primary)', fontWeight: 500 }}>{device.name}</td>
                   <td style={{ padding: '16px', color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: '0.8rem' }}>{device.deviceId}</td>
                   <td style={{ padding: '16px', color: 'var(--text-secondary)' }}>{device.location}</td>
-                  <td style={{ padding: '16px' }}>
-                    <span className={`badge ${device.status?.toLowerCase()}`}>
-                      {device.status === 'ONLINE' ? '在线' : '离线'}
-                    </span>
+                  <td style={{ padding: '16px', color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: '0.8rem', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={device.streamUrl}>
+                    {device.streamUrl}
                   </td>
                   <td style={{ padding: '16px' }}>
                     <div style={{ display: 'flex', gap: '8px' }}>
