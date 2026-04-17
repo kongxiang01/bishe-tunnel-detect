@@ -8,7 +8,7 @@ import { create } from 'zustand'
  */
 const useMonitorStore = create((set, get) => ({
   // 检测状态
-  isDetecting: true,
+  isDetecting: false,
   setIsDetecting: (isDetecting) => set({ isDetecting }),
   toggleDetecting: () => set((state) => ({ isDetecting: !state.isDetecting })),
 

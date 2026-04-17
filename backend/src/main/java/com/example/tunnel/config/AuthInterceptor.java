@@ -27,6 +27,14 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         // 获取请求头中的 token
         String token = request.getHeader("Authorization");
+        
+        // 允许从 URL 参数获取 token，便于 SSE 或 WebSocket 支持
+        if (token == null || token.isEmpty()) {
+            String queryToken = request.getParameter("token");
+            if (queryToken != null && !queryToken.isEmpty()) {
+                token = "Bearer " + queryToken;
+            }
+        }
 
         // MVP简易校验，要求必须携带 mvp-token- 前缀的标牌
         if (token != null && token.startsWith("Bearer mvp-token-")) {

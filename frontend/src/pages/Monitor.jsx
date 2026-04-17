@@ -1,105 +1,176 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
-import CameraGrid from '../components/CameraGrid'
-import useMonitorStore from '../stores/useMonitorStore'
-import '../styles.css'
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import CameraGrid from '../components/CameraGrid';
+import useMonitorStore from '../stores/useMonitorStore';
+import '../styles.css';
 
-const API_BASE = '/api'
+const API_BASE = '/api';
 
 export default function Monitor() {
-  const [health, setHealth] = useState('checking')
-  const [events, setEvents] = useState([])
-  const [devices, setDevices] = useState([])
-  const navigate = useNavigate()
+  const [health, setHealth] = useState('checking');
+  const [events, setEvents] = useState([]);
+  const [devices, setDevices] = useState([]);
+  const navigate = useNavigate();
 
-  const { isDetecting, setIsDetecting } = useMonitorStore()
+  const { isDetecting, setIsDetecting } = useMonitorStore();
 
   useEffect(() => {
     // 设置 Authorization header
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('token');
     if (token) {
-      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token
+      axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
     } else {
-      navigate('/login')
-      return
+      navigate('/login');
+      return;
     }
 
     // 获取健康状态
-    axios.get(API_BASE + '/health')
+    axios
+      .get(API_BASE + '/health')
       .then((r) => setHealth(r.data?.data?.status || r.data?.status || 'unknown'))
-      .catch(() => setHealth('offline'))
+      .catch(() => setHealth('offline'));
 
     // 获取设备列表
-    axios.get(API_BASE + '/devices/list')
-      .then(res => {
+    axios
+      .get(API_BASE + '/devices/list')
+      .then((res) => {
         if (res.data.code === 200 && res.data.data.length > 0) {
-          setDevices(res.data.data)
+          setDevices(res.data.data);
         }
       })
-      .catch(err => {
-        console.error('Failed to fetch devices', err)
+      .catch((err) => {
+        console.error('Failed to fetch devices', err);
         if (err.response?.status === 401) {
-          navigate('/login')
+          navigate('/login');
         }
-      })
-  }, [navigate])
+      });
+
+    // ===== 建立 SSE 连接，接收后端实时告警事件 =====
+    const sseUrl = `${API_BASE}/events/stream?token=${encodeURIComponent(token)}`;
+    const eventSource = new EventSource(sseUrl);
+
+    eventSource.addEventListener('newEvent', (e) => {
+      try {
+        const newEvent = JSON.parse(e.data);
+        console.log('【实时收到后端告警推送】:', newEvent);
+        // 弹窗警报
+        showAlert(newEvent);
+        // 更新事件列表
+        setEvents((prev) => {
+          // 避免重复（基于后端ID去重）
+          if (prev.find((item) => item.id === newEvent.id)) return prev;
+          return [newEvent, ...prev].slice(0, 100); // 仅保留最新100条
+        });
+      } catch (err) {
+        console.error('Parse SSE event error:', err);
+      }
+    });
+
+    eventSource.onerror = (err) => {
+      console.error('SSE connection error', err);
+      // 处理断线重连等可以在此做，默认EventSource会自动重连
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [navigate]);
+
+  const showAlert = (eventObj) => {
+    // 使用原生的alert 或 自定义弹窗
+    const isError = eventObj.eventType?.toUpperCase() === 'TRAFFIC_ACCIDENT';
+    if (
+      isError ||
+      eventObj.eventType?.toUpperCase() === 'FIRE_DISASTER' ||
+      eventObj.eventType?.toUpperCase() === 'FIRE'
+    ) {
+      const typeStr = isError ? '交通事故' : '火灾事故';
+      // 真实项目中可以通过 ant-design / element-plus 进行优雅的通知
+      // 这里简易用 DOM 操作创建一个飘窗
+      const toast = document.createElement('div');
+      toast.className = `alert-toast ${isError ? 'danger' : 'warning'}`;
+      toast.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <strong>🚨 严重告警 - ${typeStr}</strong>
+          <button class="toast-close-btn" style="background: none; border: none; font-size: 1.5rem; color: white; cursor: pointer; line-height: 1; padding: 0;">&times;</button>
+        </div>
+        <p>${eventObj.description}</p>
+        <p><small>设备: ${eventObj.deviceName || '未知'} | 时间: ${new Date(eventObj.eventTime).toLocaleString()}</small></p>
+      `;
+
+      document.body.appendChild(toast);
+
+      const closeBtn = toast.querySelector('.toast-close-btn');
+      if (closeBtn) {
+        closeBtn.onclick = () => {
+          toast.classList.add('hide');
+          setTimeout(() => {
+            if (document.body.contains(toast)) {
+              document.body.removeChild(toast);
+            }
+          }, 300);
+        };
+      }
+    }
+  };
 
   useEffect(() => {
     const fetchEvents = () => {
-      axios.get(API_BASE + '/events/list')
-        .then(res => {
-          const apiData = res.data.data || {}
+      axios
+        .get(API_BASE + '/events/list')
+        .then((res) => {
+          const apiData = res.data.data || {};
           if (apiData.content) {
-            setEvents(apiData.content)
+            setEvents(apiData.content);
           } else if (Array.isArray(apiData)) {
-            setEvents(apiData)
+            setEvents(apiData);
           }
         })
-        .catch(err => {
-          console.error('Failed to fetch events:', err)
+        .catch((err) => {
+          console.error('Failed to fetch events:', err);
           if (err.response?.status === 401) {
-            navigate('/login')
+            navigate('/login');
           }
-        })
-    }
+        });
+    };
 
-    fetchEvents()
-    const interval = setInterval(fetchEvents, 2000)
-    return () => clearInterval(interval)
-  }, [navigate])
+    fetchEvents();
+    const interval = setInterval(fetchEvents, 2000);
+    return () => clearInterval(interval);
+  }, [navigate]);
 
   const handleCameraEvent = (event) => {
-    console.log('Camera event received:', event)
-  }
+    console.log('Camera event received:', event);
+  };
 
   const getHealthBadgeClass = () => {
     switch (health) {
       case 'healthy':
       case 'online':
-        return 'badge online'
+        return 'badge online';
       case 'offline':
       case 'error':
-        return 'badge offline'
+        return 'badge offline';
       default:
-        return 'badge neutral'
+        return 'badge neutral';
     }
-  }
+  };
 
   const getHealthLabel = () => {
     switch (health) {
       case 'healthy':
       case 'online':
-        return '系统在线'
+        return '系统在线';
       case 'offline':
       case 'error':
-        return '系统离线'
+        return '系统离线';
       case 'checking':
-        return '检测中...'
+        return '检测中...';
       default:
-        return '未知状态'
+        return '未知状态';
     }
-  }
+  };
 
   return (
     <div className="page">
@@ -107,10 +178,7 @@ export default function Monitor() {
       <header className="top">
         <h1>隧道交通监控中心</h1>
         <div className="header-controls">
-          <button
-            className="header-btn"
-            onClick={() => navigate('/devices')}
-          >
+          <button className="header-btn" onClick={() => navigate('/devices')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
               <line x1="8" y1="21" x2="16" y2="21"></line>
@@ -122,9 +190,9 @@ export default function Monitor() {
           <button
             className="header-btn danger"
             onClick={() => {
-              localStorage.removeItem('token')
-              localStorage.removeItem('username')
-              navigate('/login')
+              localStorage.removeItem('token');
+              localStorage.removeItem('username');
+              navigate('/login');
             }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -164,10 +232,7 @@ export default function Monitor() {
           </button>
         </div>
 
-        <CameraGrid
-          devices={devices}
-          onEvent={handleCameraEvent}
-        />
+        <CameraGrid devices={devices} onEvent={handleCameraEvent} />
       </section>
 
       {/* Events Section */}
@@ -206,19 +271,15 @@ export default function Monitor() {
                   <div className="event-type">{evt.eventType}</div>
                   <div className="event-description">
                     {evt.description}
-                    {evt.trackId && (
-                      <span className="event-track-id">ID: {evt.trackId}</span>
-                    )}
+                    {evt.trackId && <span className="event-track-id">ID: {evt.trackId}</span>}
                   </div>
                 </div>
-                <div className="event-time">
-                  {evt.eventTime ? evt.eventTime.replace('T', ' ').split('.')[0] : '-'}
-                </div>
+                <div className="event-time">{evt.eventTime ? evt.eventTime.replace('T', ' ').split('.')[0] : '-'}</div>
               </div>
             ))
           )}
         </div>
       </section>
     </div>
-  )
+  );
 }

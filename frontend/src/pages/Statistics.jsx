@@ -695,7 +695,7 @@ export default function Statistics() {
 
       {/* Device Stats Table */}
       <div className="table-card">
-        <div className="table-title">设备事件汇总</div>
+        <div className="table-title">设备数据汇总</div>
         {devicesLoading ? (
           <div className="table-loading">加载中...</div>
         ) : devicesError ? (

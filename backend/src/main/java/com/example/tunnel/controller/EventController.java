@@ -4,6 +4,8 @@ import com.example.tunnel.annotation.Loggable;
 import com.example.tunnel.entity.DetectEvent;
 import com.example.tunnel.repository.DetectEventRepository;
 import com.example.tunnel.dto.ApiResponse;
+import com.example.tunnel.service.SseNotificationService;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -33,6 +35,17 @@ public class EventController {
 
     @Autowired
     private DetectEventRepository detectEventRepository;
+
+    @Autowired
+    private SseNotificationService sseNotificationService;
+
+    /**
+     * API_0：供前端订阅实时告警事件流 (SSE)
+     */
+    @GetMapping("/stream")
+    public SseEmitter subscribeEvents() {
+        return sseNotificationService.createEmitter();
+    }
 
     /**
      * API_1：供算法端 POST 上传违规事件数据
@@ -71,6 +84,10 @@ public class EventController {
         }
 
         detectEventRepository.save(event);
+        
+        // 广播事件通知到前端
+        sseNotificationService.broadcastEvent(event);
+        
         return ResponseEntity.ok(ApiResponse.success("Event uploaded successfully"));
     }
 

@@ -7,6 +7,7 @@ function App() {
     return routes.map((route, index) => (
       <Route
         key={index}
+        index={route.index}
         path={route.path}
         element={route.element}
       >
