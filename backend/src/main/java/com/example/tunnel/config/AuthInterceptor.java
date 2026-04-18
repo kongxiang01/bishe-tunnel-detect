@@ -1,7 +1,7 @@
 package com.example.tunnel.config;
 
-import com.example.tunnel.entity.User;
-import com.example.tunnel.repository.UserRepository;
+import com.example.tunnel.service.JwtService;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +16,7 @@ public class AuthInterceptor implements HandlerInterceptor {
     public static final String USER_ROLE_ATTR = "userRole";
 
     @Autowired
-    private UserRepository userRepository;
+    private JwtService jwtService;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -25,9 +25,9 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 获取请求头中的 token
+        // 获取请求头中的 Token
         String token = request.getHeader("Authorization");
-        
+
         // 允许从 URL 参数获取 token，便于 SSE 或 WebSocket 支持
         if (token == null || token.isEmpty()) {
             String queryToken = request.getParameter("token");
@@ -36,16 +36,22 @@ public class AuthInterceptor implements HandlerInterceptor {
             }
         }
 
-        // MVP简易校验，要求必须携带 mvp-token- 前缀的标牌
-        if (token != null && token.startsWith("Bearer mvp-token-")) {
-            String actualToken = token.substring(7); // Remove "Bearer " prefix
-            User user = userRepository.findByToken(actualToken).orElse(null);
-            if (user != null) {
-                // Set user info as request attributes for later use
-                request.setAttribute(USER_ID_ATTR, user.getId());
-                request.setAttribute(USERNAME_ATTR, user.getUsername());
-                request.setAttribute(USER_ROLE_ATTR, user.getRole());
-                return true;
+        // 验证 JWT Token
+        if (token != null && token.startsWith("Bearer ")) {
+            String actualToken = token.substring(7);
+            Claims claims = jwtService.validateToken(actualToken);
+
+            if (claims != null) {
+                Long userId = jwtService.getUserIdFromToken(actualToken);
+                String username = jwtService.getUsernameFromToken(actualToken);
+                String role = jwtService.getRoleFromToken(actualToken);
+
+                if (userId != null && username != null) {
+                    request.setAttribute(USER_ID_ATTR, userId);
+                    request.setAttribute(USERNAME_ATTR, username);
+                    request.setAttribute(USER_ROLE_ATTR, role);
+                    return true;
+                }
             }
         }
 

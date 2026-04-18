@@ -22,12 +22,6 @@ const EVENT_TYPE_LABELS = {
   other: '其他',
 };
 
-const STATUS_OPTIONS = [
-  { value: '', label: '全部' },
-  { value: 'PENDING', label: '待处理' },
-  { value: 'RESOLVED', label: '已处理' },
-];
-
 const TIME_RANGES = [
   { value: 'all', label: '全部' },
   { value: 'today', label: '今日' },
@@ -52,12 +46,10 @@ export default function Events() {
   const [pagination, setPagination] = useState({ page: 0, size: PAGE_SIZE, total: 0, totalPages: 0 });
   const [filters, setFilters] = useState({
     eventType: '全部',
-    status: '',
     timeRange: 'all',
   });
   const [customTimeRange, setCustomTimeRange] = useState({ startTime: '', endTime: '' });
   const [statistics, setStatistics] = useState({ total: 0, pendingCount: 0, resolvedCount: 0 });
-  const [processingId, setProcessingId] = useState(null);
   const [replayModal, setReplayModal] = useState({ visible: false, event: null, loading: false, replayInfo: null });
 
   const getAuthHeaders = () => {
@@ -84,9 +76,6 @@ export default function Events() {
 
         if (filters.eventType && filters.eventType !== '全部') {
           params.append('type', filters.eventType);
-        }
-        if (filters.status) {
-          params.append('status', filters.status);
         }
 
         // Time range handling
@@ -155,24 +144,6 @@ export default function Events() {
     fetchEvents(0);
   }, [filters, customTimeRange, fetchEvents]);
 
-  const handleResolve = async (eventId) => {
-    setProcessingId(eventId);
-    try {
-      await axios.put(
-        `${API_BASE}/events/${eventId}/status`,
-        { status: 'RESOLVED' },
-        { headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' } }
-      );
-      await fetchEvents(pagination.page);
-      await fetchStatistics();
-    } catch (error) {
-      console.error('处理事件失败:', error);
-      alert('处理失败，请重试');
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
   const handleReplay = async (event) => {
     setReplayModal({ visible: true, event, loading: true, replayInfo: null });
     try {
@@ -206,13 +177,6 @@ export default function Events() {
       <span className="severity-badge" style={{ background: style.bg, color: style.color, borderColor: style.border }}>
         {style.label}
       </span>
-    );
-  };
-
-  const getStatusBadge = (status) => {
-    const isPending = status === 'PENDING';
-    return (
-      <span className={`status-badge ${isPending ? 'pending' : 'resolved'}`}>{isPending ? '待处理' : '已处理'}</span>
     );
   };
 
@@ -265,14 +229,6 @@ export default function Events() {
           <span className="stat-label">总事件数</span>
           <span className="stat-value">{statistics.total}</span>
         </div>
-        <div className="stat-item pending">
-          <span className="stat-label">待处理</span>
-          <span className="stat-value">{statistics.pendingCount}</span>
-        </div>
-        <div className="stat-item resolved">
-          <span className="stat-label">已处理</span>
-          <span className="stat-value">{statistics.resolvedCount}</span>
-        </div>
       </div>
 
       {/* Filter Controls */}
@@ -288,34 +244,6 @@ export default function Events() {
               {EVENT_TYPES.map((type) => (
                 <option key={type} value={type}>
                   {EVENT_TYPE_LABELS[type]}
-                </option>
-              ))}
-            </select>
-            <svg
-              className="dropdown-arrow"
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
-          </div>
-        </div>
-
-        <div className="filter-group">
-          <label className="control-label">处理状态</label>
-          <div className="filter-dropdown">
-            <select
-              value={filters.status}
-              onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
-              className="filter-select"
-            >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
                 </option>
               ))}
             </select>
@@ -432,7 +360,6 @@ export default function Events() {
                     <div className="event-header-row">
                       <span className="event-type-badge">{getEventTypeLabel(event.eventType)}</span>
                       {getSeverityBadge(event.severity)}
-                      {getStatusBadge(event.status)}
                     </div>
                     <div className="event-description-full">
                       {event.plate && (
@@ -462,29 +389,6 @@ export default function Events() {
                       </svg>
                       回放
                     </button>
-                    {event.status === 'PENDING' && (
-                      <button
-                        className="action-btn process-btn"
-                        onClick={() => handleResolve(event.id)}
-                        disabled={processingId === event.id}
-                      >
-                        {processingId === event.id ? (
-                          <span className="btn-spinner"></span>
-                        ) : (
-                          <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                          </svg>
-                        )}
-                        处理
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>
@@ -933,27 +837,6 @@ export default function Events() {
           border: 1px solid;
         }
 
-        .status-badge {
-          display: inline-flex;
-          align-items: center;
-          padding: 2px 8px;
-          border-radius: var(--radius-sm);
-          font-size: 0.75rem;
-          font-weight: 500;
-        }
-
-        .status-badge.pending {
-          background: rgba(245, 158, 11, 0.15);
-          color: #f59e0b;
-          border: 1px solid rgba(245, 158, 11, 0.3);
-        }
-
-        .status-badge.resolved {
-          background: rgba(16, 185, 129, 0.15);
-          color: #10b981;
-          border: 1px solid rgba(16, 185, 129, 0.3);
-        }
-
         .event-description-full {
           font-size: 0.9rem;
         }
@@ -1011,23 +894,6 @@ export default function Events() {
           border: 1px solid;
         }
 
-        .process-btn {
-          background: rgba(16, 185, 129, 0.1);
-          border-color: rgba(16, 185, 129, 0.3);
-          color: #10b981;
-        }
-
-        .process-btn:hover:not(:disabled) {
-          background: rgba(16, 185, 129, 0.2);
-          border-color: #10b981;
-          transform: translateY(-1px);
-        }
-
-        .process-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
         .replay-btn {
           background: rgba(59, 130, 246, 0.1);
           border-color: rgba(59, 130, 246, 0.3);
@@ -1038,15 +904,6 @@ export default function Events() {
           background: rgba(59, 130, 246, 0.2);
           border-color: var(--accent-secondary);
           transform: translateY(-1px);
-        }
-
-        .btn-spinner {
-          width: 14px;
-          height: 14px;
-          border: 2px solid rgba(16, 185, 129, 0.3);
-          border-top-color: #10b981;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
         }
 
         .pagination {

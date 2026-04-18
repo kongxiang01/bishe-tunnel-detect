@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Table, Button, Tag, Space, Popconfirm, ConfigProvider, theme } from 'antd';
 
@@ -11,9 +12,10 @@ function Users() {
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('add');
   const [selectedUser, setSelectedUser] = useState(null);
-  const [formData, setFormData] = useState({ username: '', password: '', role: 'Viewer', status: 'active' });
+  const [formData, setFormData] = useState({ username: '', password: '', role: 'VIEWER', status: 'active' });
   const [formError, setFormError] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const navigate = useNavigate();
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
@@ -35,13 +37,19 @@ function Users() {
   };
 
   useEffect(() => {
+    // 检查用户角色，非管理员不能访问
+    const role = localStorage.getItem('role');
+    if (role !== 'ADMIN') {
+      navigate('/');
+      return;
+    }
     fetchUsers();
   }, []);
 
   const handleAddUser = () => {
     setModalMode('add');
     setSelectedUser(null);
-    setFormData({ username: '', password: '', role: 'Viewer', status: 'active' });
+    setFormData({ username: '', password: '', role: 'VIEWER', status: 'active' });
     setFormError('');
     setShowModal(true);
   };
@@ -124,8 +132,8 @@ function Users() {
   };
 
   const getRoleTag = (role) => {
-    const color = role === 'Admin' ? 'blue' : 'default';
-    const text = role === 'Admin' ? '管理员' : '操作员';
+    const color = role === 'ADMIN' ? 'blue' : 'default';
+    const text = role === 'ADMIN' ? '管理员' : '操作员';
     return <Tag color={color}>{text}</Tag>;
   };
 
@@ -348,8 +356,8 @@ function Users() {
                       boxSizing: 'border-box'
                     }}
                   >
-                    <option value="Admin">管理员</option>
-                    <option value="Viewer">操作员</option>
+                    <option value="ADMIN">管理员</option>
+                    <option value="VIEWER">操作员</option>
                   </select>
                 </div>
                 <div style={{ marginBottom: '16px' }}>

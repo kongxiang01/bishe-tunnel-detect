@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "detect_event", indexes = {
     @Index(name = "idx_event_type", columnList = "event_type"),
-    @Index(name = "idx_status", columnList = "status"),
     @Index(name = "idx_event_time", columnList = "event_time"),
     @Index(name = "idx_device_id", columnList = "device_id")
 })
@@ -49,12 +48,6 @@ public class DetectEvent {
      */
     @Column(length = 20)
     private String severity;
-
-    /**
-     * 处理状态：PENDING（待处理）/ RESOLVED（已处理）
-     */
-    @Column(length = 20)
-    private String status;
 
     /**
      * 车牌号（如果检测到车辆）
@@ -137,14 +130,6 @@ public class DetectEvent {
 
     public void setSeverity(String severity) {
         this.severity = severity;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
     }
 
     public String getPlate() {

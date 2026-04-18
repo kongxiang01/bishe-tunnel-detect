@@ -23,9 +23,6 @@ public class User {
     @Column(name = "created_time")
     private LocalDateTime createdTime;
 
-    @Column(length = 100)
-    private String token;
-
     // 用户状态: active=正常, disabled=停用
     @Column(length = 20)
     private String status = "active";
@@ -73,14 +70,6 @@ public class User {
 
     public void setCreatedTime(LocalDateTime createdTime) {
         this.createdTime = createdTime;
-    }
-
-    public String getToken() {
-        return token;
-    }
-
-    public void setToken(String token) {
-        this.token = token;
     }
 
     public String getStatus() {

@@ -89,6 +89,7 @@ export default function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const username = localStorage.getItem('username') || 'Admin';
+  const userRole = localStorage.getItem('role') || '';
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -155,15 +156,21 @@ export default function MainLayout() {
         </div>
 
         <nav className="sidebar-nav">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-            >
-              <NavItem item={item} isActive={location.pathname === item.path} />
-            </NavLink>
-          ))}
+          {navItems.map((item) => {
+            // 非管理员用户隐藏用户管理菜单
+            if (item.path === '/users' && userRole !== 'ADMIN') {
+              return null;
+            }
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+              >
+                <NavItem item={item} isActive={location.pathname === item.path} />
+              </NavLink>
+            );
+          })}
         </nav>
 
         <button

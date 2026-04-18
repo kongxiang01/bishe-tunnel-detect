@@ -35,29 +35,9 @@ public interface DetectEventRepository extends JpaRepository<DetectEvent, Long>,
     Page<DetectEvent> findByEventType(String eventType, Pageable pageable);
 
     /**
-     * 按处理状态查询事件（分页）
-     */
-    Page<DetectEvent> findByStatus(String status, Pageable pageable);
-
-    /**
-     * 按事件类型和处理状态查询事件（分页）
-     */
-    Page<DetectEvent> findByEventTypeAndStatus(String eventType, String status, Pageable pageable);
-
-    /**
      * 按设备ID和事件类型查询事件（分页）
      */
     Page<DetectEvent> findByDeviceIdAndEventType(String deviceId, String eventType, Pageable pageable);
-
-    /**
-     * 按设备ID和处理状态查询事件（分页）
-     */
-    Page<DetectEvent> findByDeviceIdAndStatus(String deviceId, String status, Pageable pageable);
-
-    /**
-     * 按设备ID、事件类型和处理状态查询事件（分页）
-     */
-    Page<DetectEvent> findByDeviceIdAndEventTypeAndStatus(String deviceId, String eventType, String status, Pageable pageable);
 
     /**
      * 按时间范围查询事件（分页）
@@ -68,25 +48,4 @@ public interface DetectEventRepository extends JpaRepository<DetectEvent, Long>,
      * 按事件类型和时间范围查询事件（分页）
      */
     Page<DetectEvent> findByEventTypeAndEventTimeBetween(String eventType, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable);
-
-    /**
-     * 按处理状态和时间范围查询事件（分页）
-     */
-    Page<DetectEvent> findByStatusAndEventTimeBetween(String status, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable);
-
-    /**
-     * 按事件类型、处理状态和时间范围查询事件（分页）
-     */
-    Page<DetectEvent> findByEventTypeAndStatusAndEventTimeBetween(
-            String eventType, String status, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable);
-
-    /**
-     * 统计待处理事件数量
-     */
-    long countByStatus(String status);
-
-    /**
-     * 统计某设备待处理事件数量
-     */
-    long countByDeviceIdAndStatus(String deviceId, String status);
 }

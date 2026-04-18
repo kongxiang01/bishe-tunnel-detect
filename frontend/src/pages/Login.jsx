@@ -17,6 +17,7 @@ export default function Login() {
       if (res.data.code === 200 && res.data.data?.token) {
         localStorage.setItem('token', res.data.data.token);
         localStorage.setItem('username', res.data.data.username);
+        localStorage.setItem('role', res.data.data.role);
         // 登录成功，跳转到监控大屏
         navigate('/monitor');
       }

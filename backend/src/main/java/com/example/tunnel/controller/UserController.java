@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -25,6 +26,7 @@ public class UserController {
     @Loggable
     @PostMapping
     public ResponseEntity<ApiResponse<User>> createUser(@RequestBody User user) {
+        user.setCreatedTime(LocalDateTime.now());
         return ResponseEntity.ok(ApiResponse.success(userRepository.save(user)));
     }
 

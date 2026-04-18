@@ -1,6 +1,13 @@
 server:
   port: 8080
 
+# JWT 配置
+jwt:
+  # 密钥（生产环境应使用更复杂的密钥，至少 256 位）
+  secret: tunnel-detect-secret-key-for-jwt-token-generation-2024
+  # Token 过期时间（毫秒），默认 24 小时
+  expiration: 86400000
+
 spring:
   application:
     name: tunnel-detect-backend

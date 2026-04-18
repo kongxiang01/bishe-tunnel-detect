@@ -49,7 +49,7 @@ public class EventController {
 
     /**
      * API_1：供算法端 POST 上传违规事件数据
-     * 支持新字段：deviceId, deviceName, severity, status, plate
+     * 支持新字段：deviceId, deviceName, severity, plate
      */
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<String>> uploadEvent(@RequestBody EventUploadRequest request) {
@@ -71,8 +71,6 @@ public class EventController {
         if (request.getSeverity() != null) {
             event.setSeverity(request.getSeverity());
         }
-        // 默认状态为待处理
-        event.setStatus(request.getStatus() != null ? request.getStatus() : "PENDING");
         if (request.getPlate() != null) {
             event.setPlate(request.getPlate());
         }
@@ -93,12 +91,11 @@ public class EventController {
 
     /**
      * API_2：供前端 GET 获取告警记录
-     * 支持分页、事件类型筛选、状态筛选、时间范围筛选
+     * 支持分页、事件类型筛选、时间范围筛选
      *
      * @param page 页码（从0开始）
      * @param size 每页大小
      * @param type 事件类型筛选（如：accident, illegal_parking）
-     * @param status 处理状态筛选（PENDING, RESOLVED）
      * @param startTime 开始时间（格式：yyyy-MM-dd HH:mm:ss）
      * @param endTime 结束时间（格式：yyyy-MM-dd HH:mm:ss）
      */
@@ -107,7 +104,6 @@ public class EventController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String type,
-            @RequestParam(required = false) String status,
             @RequestParam(required = false) String startTime,
             @RequestParam(required = false) String endTime) {
 
@@ -126,10 +122,6 @@ public class EventController {
 
             if (type != null && !type.trim().isEmpty()) {
                 predicates.add(criteriaBuilder.equal(root.get("eventType"), type));
-            }
-
-            if (status != null && !status.trim().isEmpty()) {
-                predicates.add(criteriaBuilder.equal(root.get("status"), status));
             }
 
             if (parsedStartTime != null) {
@@ -153,60 +145,14 @@ public class EventController {
     }
 
     /**
-     * API_3：更新事件处理状态
-     *
-     * @param id 事件ID
-     * @param request 包含新状态的请求体 {status: "PENDING"或"RESOLVED"}
-     */
-    @Loggable
-    @PutMapping("/{id}/status")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> updateEventStatus(
-            @PathVariable Long id,
-            @RequestBody StatusUpdateRequest request) {
-
-        Optional<DetectEvent> eventOpt = detectEventRepository.findById(id);
-
-        if (eventOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        // 验证状态值
-        String newStatus = request.getStatus();
-        if (newStatus == null || (!newStatus.equals("PENDING") && !newStatus.equals("RESOLVED"))) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(400, "无效的状态值，只支持 PENDING 或 RESOLVED"));
-        }
-
-        DetectEvent event = eventOpt.get();
-        event.setStatus(newStatus);
-        detectEventRepository.save(event);
-
-        return ResponseEntity.ok(ApiResponse.success("状态更新成功", Map.of(
-                "id", event.getId(),
-                "status", event.getStatus()
-        )));
-    }
-
-    /**
      * 获取事件统计信息
-     * 返回前端需要的格式: {total, pendingCount, resolvedCount}
+     * 返回前端需要的格式: {total}
      */
     @GetMapping("/statistics")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getEventStatistics() {
         Map<String, Object> result = new HashMap<>();
         result.put("total", detectEventRepository.count());
-        result.put("pendingCount", detectEventRepository.countByStatus("PENDING"));
-        result.put("resolvedCount", detectEventRepository.countByStatus("RESOLVED"));
         return ResponseEntity.ok(ApiResponse.success(result));
-    }
-
-    /**
-     * 获取待处理事件数量
-     */
-    @GetMapping("/pending/count")
-    public ResponseEntity<ApiResponse<Long>> getPendingEventCount() {
-        long count = detectEventRepository.countByStatus("PENDING");
-        return ResponseEntity.ok(ApiResponse.success(count));
     }
 
     /**
@@ -258,7 +204,6 @@ class EventUploadRequest {
     private String deviceId;
     private String deviceName;
     private String severity;
-    private String status;
     private String plate;
     private String videoClipUrl;
     private String imageUrl;
@@ -327,14 +272,6 @@ class EventUploadRequest {
         this.severity = severity;
     }
 
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
     public String getPlate() {
         return plate;
     }
@@ -344,17 +281,3 @@ class EventUploadRequest {
     }
 }
 
-/**
- * 状态更新请求DTO
- */
-class StatusUpdateRequest {
-    private String status;
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-}
