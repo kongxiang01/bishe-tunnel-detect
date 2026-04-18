@@ -49,7 +49,7 @@ public class EventController {
 
     /**
      * API_1：供算法端 POST 上传违规事件数据
-     * 支持新字段：deviceId, deviceName, severity, plate
+     * 支持新字段：deviceId, deviceName, severity
      */
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<String>> uploadEvent(@RequestBody EventUploadRequest request) {
@@ -70,9 +70,6 @@ public class EventController {
         }
         if (request.getSeverity() != null) {
             event.setSeverity(request.getSeverity());
-        }
-        if (request.getPlate() != null) {
-            event.setPlate(request.getPlate());
         }
         if (request.getVideoClipUrl() != null) {
             event.setVideoClipUrl(request.getVideoClipUrl());
@@ -204,7 +201,6 @@ class EventUploadRequest {
     private String deviceId;
     private String deviceName;
     private String severity;
-    private String plate;
     private String videoClipUrl;
     private String imageUrl;
 
@@ -270,14 +266,6 @@ class EventUploadRequest {
 
     public void setSeverity(String severity) {
         this.severity = severity;
-    }
-
-    public String getPlate() {
-        return plate;
-    }
-
-    public void setPlate(String plate) {
-        this.plate = plate;
     }
 }
 

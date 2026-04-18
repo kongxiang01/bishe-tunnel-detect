@@ -50,12 +50,6 @@ public class DetectEvent {
     private String severity;
 
     /**
-     * 车牌号（如果检测到车辆）
-     */
-    @Column(length = 20)
-    private String plate;
-
-    /**
      * 回溯录像切片地址
      */
     @Column(name = "video_clip_url", length = 500)
@@ -130,14 +124,6 @@ public class DetectEvent {
 
     public void setSeverity(String severity) {
         this.severity = severity;
-    }
-
-    public String getPlate() {
-        return plate;
-    }
-
-    public void setPlate(String plate) {
-        this.plate = plate;
     }
 
     public String getVideoClipUrl() {

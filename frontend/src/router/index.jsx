@@ -7,7 +7,6 @@ import Statistics from '../pages/Statistics';
 import Devices from '../pages/Devices';
 import Users from '../pages/Users';
 import Logs from '../pages/Logs';
-import Settings from '../pages/Settings';
 
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -57,10 +56,6 @@ const router = [
       {
         path: 'logs',
         element: <Logs />,
-      },
-      {
-        path: 'settings',
-        element: <Settings />,
       },
     ],
   },

@@ -168,11 +168,11 @@ export default function Events() {
 
   const getSeverityBadge = (severity) => {
     const config = {
-      严重: { bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: 'rgba(239, 68, 68, 0.3)', label: '严重' },
-      警告: { bg: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: 'rgba(245, 158, 11, 0.3)', label: '警告' },
-      普通: { bg: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4', border: 'rgba(6, 182, 212, 0.3)', label: '普通' },
+      CRITICAL: { bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: 'rgba(239, 68, 68, 0.3)', label: '严重' },
+      WARNING: { bg: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: 'rgba(245, 158, 11, 0.3)', label: '警告' },
+      NORMAL: { bg: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4', border: 'rgba(6, 182, 212, 0.3)', label: '普通' },
     };
-    const style = config[severity] || config['普通'];
+    const style = config[severity] || config['NORMAL'];
     return (
       <span className="severity-badge" style={{ background: style.bg, color: style.color, borderColor: style.border }}>
         {style.label}
@@ -362,12 +362,6 @@ export default function Events() {
                       {getSeverityBadge(event.severity)}
                     </div>
                     <div className="event-description-full">
-                      {event.plate && (
-                        <>
-                          <span className="plate-number">{event.plate}</span>
-                          <span className="desc-separator"> - </span>
-                        </>
-                      )}
                       <span className="desc-text">{event.description}</span>
                     </div>
                   </div>
@@ -839,16 +833,6 @@ export default function Events() {
 
         .event-description-full {
           font-size: 0.9rem;
-        }
-
-        .plate-number {
-          font-weight: 600;
-          color: var(--text-primary);
-          font-family: 'JetBrains Mono', monospace;
-        }
-
-        .desc-separator {
-          color: var(--text-muted);
         }
 
         .desc-text {

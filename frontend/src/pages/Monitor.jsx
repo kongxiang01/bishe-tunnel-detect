@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import CameraGrid from '../components/CameraGrid';
@@ -14,6 +14,56 @@ export default function Monitor() {
   const navigate = useNavigate();
 
   const { isDetecting, setIsDetecting } = useMonitorStore();
+
+  // 弹窗容器引用（用于 flex 堆叠）
+  const toastContainerRef = useRef(null);
+
+  // 播放警报音效 — 一声长警报
+  const playAlertSound = (onEnd) => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const duration = 3.0;
+
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + duration);
+
+      // 声音结束后立即触发语音
+      osc.onended = () => onEnd?.();
+    } catch (e) {
+      console.warn('Audio alert failed:', e);
+      onEnd?.(); // 出错时也尝试播语音
+    }
+  };
+
+  // 报警文字语音播报（Web Speech API）
+  const speakAlertText = (eventObj) => {
+    const eventType = eventObj.eventType?.toUpperCase() || '';
+    if (!window.speechSynthesis) return;
+
+    // 取消之前所有待处理的语音，立即播报新的
+    window.speechSynthesis.cancel();
+
+    let text = '';
+    if (eventType === 'FIRE_DISASTER' || eventType === 'FIRE') text = '火灾警报，请立即处理';
+    else if (eventType === 'TRAFFIC_ACCIDENT') text = '交通事故警报，请立即处理';
+    else if (eventType === 'PEDESTRIAN_INTRUSION') text = '行人闯入警报';
+    else text = '收到一条告警通知';
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'zh-CN';
+    utterance.rate = 1.2;
+    utterance.pitch = 1.0;
+    window.speechSynthesis.speak(utterance);
+  };
 
   useEffect(() => {
     // 设置 Authorization header
@@ -78,41 +128,51 @@ export default function Monitor() {
   }, [navigate]);
 
   const showAlert = (eventObj) => {
-    // 使用原生的alert 或 自定义弹窗
-    const isError = eventObj.eventType?.toUpperCase() === 'TRAFFIC_ACCIDENT';
-    if (
-      isError ||
-      eventObj.eventType?.toUpperCase() === 'FIRE_DISASTER' ||
-      eventObj.eventType?.toUpperCase() === 'FIRE'
-    ) {
-      const typeStr = isError ? '交通事故' : '火灾事故';
-      // 真实项目中可以通过 ant-design / element-plus 进行优雅的通知
-      // 这里简易用 DOM 操作创建一个飘窗
-      const toast = document.createElement('div');
-      toast.className = `alert-toast ${isError ? 'danger' : 'warning'}`;
-      toast.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-          <strong>🚨 严重告警 - ${typeStr}</strong>
-          <button class="toast-close-btn" style="background: none; border: none; font-size: 1.5rem; color: white; cursor: pointer; line-height: 1; padding: 0;">&times;</button>
-        </div>
-        <p>${eventObj.description}</p>
-        <p><small>设备: ${eventObj.deviceName || '未知'} | 时间: ${new Date(eventObj.eventTime).toLocaleString()}</small></p>
-      `;
+    const eventType = eventObj.eventType?.toUpperCase() || '';
+    const severity = eventObj.severity?.toUpperCase() || 'NORMAL';
 
-      document.body.appendChild(toast);
+    // 所有级别都弹窗，只是样式不同
+    const isCritical = severity === 'CRITICAL';
+    const isWarning = severity === 'WARNING';
+    const isNormal = severity === 'NORMAL';
 
-      const closeBtn = toast.querySelector('.toast-close-btn');
-      if (closeBtn) {
-        closeBtn.onclick = () => {
-          toast.classList.add('hide');
-          setTimeout(() => {
-            if (document.body.contains(toast)) {
-              document.body.removeChild(toast);
-            }
-          }, 300);
-        };
-      }
+    // 获取事件类型中文描述
+    let typeStr = '事件通知';
+    if (eventType === 'TRAFFIC_ACCIDENT') typeStr = '交通事故';
+    else if (eventType === 'FIRE_DISASTER' || eventType === 'FIRE') typeStr = '火灾事故';
+    else if (eventType === 'PEDESTRIAN_INTRUSION') typeStr = '行人闯入';
+    else if (eventType === 'TRAFFIC_CONGESTION') typeStr = '交通拥堵';
+
+    let toastClass = 'normal';
+    if (isCritical) toastClass = 'danger';
+    else if (isWarning) toastClass = 'warning';
+
+    // CRITICAL 播放声音警报，结束后立即播报语音
+    if (isCritical) {
+      playAlertSound(() => speakAlertText(eventObj));
     }
+
+    // 创建弹窗 DOM，追加到 toastContainer 中
+    const toast = document.createElement('div');
+    toast.className = `alert-toast ${toastClass}`;
+    toast.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <strong>🚨 ${isCritical ? '严重告警' : isWarning ? '告警' : '通知'} - ${typeStr}</strong>
+        <button class="toast-close-btn" style="background: none; border: none; font-size: 1.5rem; color: white; cursor: pointer; line-height: 1; padding: 0;">&times;</button>
+      </div>
+      <p>${eventObj.description}</p>
+      <p><small>设备: ${eventObj.deviceName || '未知'} | 时间: ${new Date(eventObj.eventTime).toLocaleString()}</small></p>
+    `;
+
+    const container = toastContainerRef.current || document.body;
+    container.appendChild(toast);
+
+    const closeBtn = toast.querySelector('.toast-close-btn');
+    closeBtn.onclick = () => {
+      if (container.contains(toast)) {
+        container.removeChild(toast);
+      }
+    };
   };
 
   useEffect(() => {
@@ -280,6 +340,20 @@ export default function Monitor() {
           )}
         </div>
       </section>
+
+      {/* 弹窗容器，flex column 使新弹窗在下方弹出 */}
+      <div
+        ref={toastContainerRef}
+        style={{
+          position: 'fixed',
+          top: 20,
+          right: 20,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          zIndex: 9999,
+        }}
+      />
     </div>
   );
 }

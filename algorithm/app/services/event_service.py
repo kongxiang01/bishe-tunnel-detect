@@ -6,12 +6,12 @@ from datetime import datetime
 from app.core.config import settings
 from app.services.replay_service import ReplayService
 
-def send_event_to_backend(track_id, event_type, message, device_id=None, device_name=None, event_uuid=None):
+def send_event_to_backend(track_id, event_type, message, severity, device_id=None, device_name=None, event_uuid=None):
     """
     异步发送事件到 Spring Boot 后端
     """
     url = "http://localhost:8080/api/events/upload"
-    
+
     # 填充生成好的回放URL
     video_url = f"http://127.0.0.1:8000/replay/{device_id}/{event_uuid}.webm" if event_uuid else None
     image_url = f"http://127.0.0.1:8000/replay/{device_id}/{event_uuid}.jpg" if event_uuid else None
@@ -19,6 +19,7 @@ def send_event_to_backend(track_id, event_type, message, device_id=None, device_
     payload = {
         "eventType": event_type,
         "description": message,
+        "severity": severity,
         "trackId": track_id,
         "deviceId": device_id,
         "deviceName": device_name,
@@ -97,28 +98,32 @@ class EventService:
                     if class_name == "fire":
                         event_type = "FIRE_DISASTER"
                         event_msg = f"🔥 火灾紧急告警：隧道内发现明火或浓烟!"
+                        event_severity = "CRITICAL"
                     elif class_name == "accident":
                         event_type = "TRAFFIC_ACCIDENT"
                         event_msg = f"💥 事故严重告警：隧道内发生车辆碰撞事故!"
+                        event_severity = "CRITICAL"
                     elif class_name == "person":
                         event_type = "PEDESTRIAN_INTRUSION"
                         event_msg = f"🚶 行人闯入告警：行车道侦测到违规闯入轨迹!"
-                    
+                        event_severity = "WARNING"
+
                     if event_type:
                         # 立刻刷新这个类型事件的最后触发时间
                         self.event_type_cooldowns[class_name] = current_time
-                        
+
                         event_uuid = str(uuid.uuid4())
                         self.replay_service.trigger_record(event_uuid)
 
                         threading.Thread(
                             target=send_event_to_backend,
-                            args=(tid, event_type, event_msg, self.device_id, self.device_name, event_uuid),
+                            args=(tid, event_type, event_msg, event_severity, self.device_id, self.device_name, event_uuid),
                             daemon=True
                         ).start()
 
                         current_events.append({
                             "type": event_type.lower(),
+                            "severity": event_severity,
                             "track_id": tid, # 前端可以用这个值来标亮当下的危险框
                             "message": event_msg,
                             "timestamp": int(current_time * 1000),
@@ -176,12 +181,13 @@ class EventService:
 
                         threading.Thread(
                             target=send_event_to_backend,
-                            args=(0, "TRAFFIC_CONGESTION", event_msg, self.device_id, self.device_name, event_uuid),
+                            args=(0, "TRAFFIC_CONGESTION", event_msg, "NORMAL", self.device_id, self.device_name, event_uuid),
                             daemon=True
                         ).start()
-                        
+
                         current_events.append({
                             "type": "traffic_congestion",
+                            "severity": "NORMAL",
                             "track_id": 0,
                             "message": event_msg,
                             "timestamp": int(current_time * 1000),
