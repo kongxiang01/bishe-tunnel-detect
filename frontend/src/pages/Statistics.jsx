@@ -27,20 +27,38 @@ function StatCard({ icon, title, value, unit, loading, error }) {
   );
 }
 
-function TrafficChart({ hourlyData, loading, error }) {
+// 时间范围标题映射
+const TIME_RANGE_LABEL = {
+  today: '今日',
+  week: '本周',
+  month: '本月',
+  year: '今年',
+};
+
+// 图表标题映射
+const CHART_TITLE = {
+  today: '24小时车流量趋势',
+  week: '本周车流量趋势',
+  month: '本月车流量趋势',
+  year: '今年车流量趋势',
+};
+
+function TrendChart({ trendData, trendType, loading, error, timeRange }) {
+  const chartTitle = CHART_TITLE[timeRange] || '车流量趋势';
+
   if (loading) {
     return (
       <div className="chart-container">
-        <div className="chart-title">24小时车流量趋势</div>
+        <div className="chart-title">{chartTitle}</div>
         <div className="chart-loading">加载中...</div>
       </div>
     );
   }
 
-  if (error || !hourlyData || hourlyData.length === 0) {
+  if (error || !trendData || trendData.length === 0) {
     return (
       <div className="chart-container">
-        <div className="chart-title">24小时车流量趋势</div>
+        <div className="chart-title">{chartTitle}</div>
         <div className="chart-error">数据加载失败</div>
       </div>
     );
@@ -51,7 +69,7 @@ function TrafficChart({ hourlyData, loading, error }) {
       trigger: 'axis',
       formatter: (params) => {
         const data = params[0];
-        return `${data.name}时<br/>车流量: ${data.value} 辆`;
+        return `${data.name}<br/>车流量: ${data.value} 辆`;
       },
     },
     grid: {
@@ -63,10 +81,11 @@ function TrafficChart({ hourlyData, loading, error }) {
     },
     xAxis: {
       type: 'category',
-      data: hourlyData.map((d) => d.hour),
+      data: trendData.map((d) => d.label),
       axisLabel: {
-        formatter: (value) => `${value}时`,
         color: '#64748b',
+        interval: timeRange === 'year' ? 1 : 'auto',
+        rotate: timeRange === 'year' ? 30 : 0,
       },
       axisLine: {
         lineStyle: { color: '#e2e8f0' },
@@ -101,14 +120,14 @@ function TrafficChart({ hourlyData, loading, error }) {
             { offset: 1, color: 'rgba(59, 130, 246, 0.05)' },
           ]),
         },
-        data: hourlyData.map((d) => d.count),
+        data: trendData.map((d) => d.count),
       },
     ],
   };
 
   return (
     <div className="chart-container">
-      <div className="chart-title">24小时车流量趋势</div>
+      <div className="chart-title">{chartTitle}</div>
       <ReactECharts option={option} style={{ height: '220px' }} />
     </div>
   );
@@ -131,7 +150,6 @@ const FALLBACK_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#64748b', '#ec4899', 
  * used by EventPieChart. Percentages are rounded to whole numbers.
  */
 function buildDistribution(eventCounts, totalEvents) {
-  console.log('11111111', eventCounts);
   return Object.entries(eventCounts).map(([type, count], index) => {
     const config = EVENT_TYPE_CONFIG[type];
     return {
@@ -260,6 +278,9 @@ export default function Statistics() {
   const [devicesLoading, setDevicesLoading] = useState(true);
   const [devicesError, setDevicesError] = useState(null);
 
+  // Time range filter
+  const [timeRange, setTimeRange] = useState('today');
+
   useEffect(() => {
     // Set Authorization header from stored token (same pattern as Monitor.jsx)
     const token = localStorage.getItem('token');
@@ -271,7 +292,7 @@ export default function Statistics() {
     setTrafficLoading(true);
     setTrafficError(null);
     axios
-      .get(`${STATISTICS_API}/traffic`)
+      .get(`${STATISTICS_API}/traffic?timeRange=${timeRange}`)
       .then((res) => {
         setTrafficData(res.data.data || null);
       })
@@ -287,7 +308,7 @@ export default function Statistics() {
     setEventsLoading(true);
     setEventsError(null);
     axios
-      .get(`${STATISTICS_API}/events`)
+      .get(`${STATISTICS_API}/events?timeRange=${timeRange}`)
       .then((res) => {
         const { eventCounts, totalEvents: total } = res.data.data || {};
         setTotalEvents(total);
@@ -305,7 +326,7 @@ export default function Statistics() {
     setDevicesLoading(true);
     setDevicesError(null);
     axios
-      .get(`${STATISTICS_API}/devices`)
+      .get(`${STATISTICS_API}/devices?timeRange=${timeRange}`)
       .then((res) => {
         setDeviceStats(res.data.data?.deviceStats || []);
       })
@@ -316,13 +337,15 @@ export default function Statistics() {
       .finally(() => {
         setDevicesLoading(false);
       });
-  }, []);
+  }, [timeRange]);
 
   // Format online devices display
   const onlineDevicesDisplay =
     trafficLoading || trafficError
       ? '--'
       : `${trafficData?.onlineDevices ?? '--'}/${trafficData?.totalDevices ?? '--'}`;
+
+  const timeLabel = TIME_RANGE_LABEL[timeRange] || '今日';
 
   return (
     <ConfigProvider
@@ -361,6 +384,7 @@ export default function Statistics() {
           border: 1px solid var(--border-default);
           margin-bottom: var(--spacing-lg);
           box-shadow: var(--shadow-card);
+          gap: var(--spacing-md);
         }
 
         .stats-header h1 {
@@ -371,6 +395,44 @@ export default function Statistics() {
           -webkit-text-fill-color: transparent;
           background-clip: text;
           letter-spacing: -0.02em;
+        }
+
+        .time-filter-group {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+        }
+
+        .control-label {
+          color: var(--text-secondary);
+          font-size: 0.875rem;
+          white-space: nowrap;
+        }
+
+        .time-chip {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+          padding: 4px 12px;
+          background: var(--bg-card);
+          border: 1px solid var(--border-default);
+          border-radius: 16px;
+          color: var(--text-secondary);
+          font-size: 0.8rem;
+          cursor: pointer;
+          transition: all var(--transition-fast);
+          user-select: none;
+        }
+
+        .time-chip:hover {
+          border-color: var(--border-hover);
+          color: var(--text-primary);
+        }
+
+        .time-chip.selected {
+          background: var(--accent-primary-dim);
+          border-color: var(--accent-primary);
+          color: var(--accent-primary);
         }
 
         .stats-grid {
@@ -653,21 +715,48 @@ export default function Statistics() {
       {/* Header */}
       <div className="stats-header">
         <h1>统计分析</h1>
+        <div className="time-filter-group">
+          <div className="control-label" style={{ marginRight: '8px', alignSelf: 'center' }}>时间筛选:</div>
+          <label
+            className={`time-chip ${timeRange === 'today' ? 'selected' : ''}`}
+            onClick={() => setTimeRange('today')}
+          >
+            今日
+          </label>
+          <label
+            className={`time-chip ${timeRange === 'week' ? 'selected' : ''}`}
+            onClick={() => setTimeRange('week')}
+          >
+            本周
+          </label>
+          <label
+            className={`time-chip ${timeRange === 'month' ? 'selected' : ''}`}
+            onClick={() => setTimeRange('month')}
+          >
+            本月
+          </label>
+          <label
+            className={`time-chip ${timeRange === 'year' ? 'selected' : ''}`}
+            onClick={() => setTimeRange('year')}
+          >
+            今年
+          </label>
+        </div>
       </div>
 
       {/* Stat Cards */}
       <div className="stats-grid">
         <StatCard
           icon="🚗"
-          title="今日车流量"
-          value={trafficLoading || trafficError ? null : (trafficData?.todayTraffic ?? null)}
+          title={`${timeLabel}车流量`}
+          value={trafficLoading || trafficError ? null : (trafficData?.traffic ?? null)}
           unit="辆"
           loading={trafficLoading}
           error={trafficError}
         />
         <StatCard
           icon="⚠️"
-          title="事件总数"
+          title={`${timeLabel}事件数`}
           value={eventsLoading || eventsError ? null : totalEvents}
           unit="起"
           loading={eventsLoading}
@@ -686,7 +775,13 @@ export default function Statistics() {
       {/* Charts */}
       <div className="charts-grid">
         <div className="chart-card">
-          <TrafficChart hourlyData={trafficData?.hourlyData} loading={trafficLoading} error={trafficError} />
+          <TrendChart
+            trendData={trafficData?.trendData}
+            trendType={trafficData?.trendType}
+            loading={trafficLoading}
+            error={trafficError}
+            timeRange={timeRange}
+          />
         </div>
         <div className="chart-card">
           <EventPieChart distribution={eventDistribution} loading={eventsLoading} error={eventsError} />
@@ -714,14 +809,14 @@ export default function Statistics() {
                 render: (text) => <span style={{ fontWeight: 500 }}>{text}</span>,
               },
               {
-                title: '今日车流量',
+                title: `${timeLabel}车流量`,
                 dataIndex: 'trafficCount',
                 key: 'trafficCount',
                 width: 120,
                 render: (val) => val ?? 0,
               },
               {
-                title: '今日事件数',
+                title: `${timeLabel}事件数`,
                 dataIndex: 'eventCount',
                 key: 'eventCount',
                 width: 100,

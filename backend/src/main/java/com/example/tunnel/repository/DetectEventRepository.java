@@ -40,12 +40,25 @@ public interface DetectEventRepository extends JpaRepository<DetectEvent, Long>,
     Page<DetectEvent> findByDeviceIdAndEventType(String deviceId, String eventType, Pageable pageable);
 
     /**
-     * 按时间范围查询事件（分页）
+     * 按时间范围查询事件
      */
-    Page<DetectEvent> findByEventTimeBetween(LocalDateTime startTime, LocalDateTime endTime, Pageable pageable);
+    List<DetectEvent> findByEventTimeBetween(LocalDateTime startTime, LocalDateTime endTime);
 
     /**
      * 按事件类型和时间范围查询事件（分页）
      */
     Page<DetectEvent> findByEventTypeAndEventTimeBetween(String eventType, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable);
+
+    /**
+     * 按事件类型和时间范围统计数量
+     */
+    @Query("SELECT e.eventType, COUNT(e) FROM DetectEvent e " +
+           "WHERE e.eventTime >= :start AND e.eventTime <= :end GROUP BY e.eventType")
+    List<Object[]> countEventsByTypeAndTimeRange(@Param("start") LocalDateTime start,
+                                                  @Param("end") LocalDateTime end);
+
+    /**
+     * 按时间范围统计总数
+     */
+    long countByEventTimeBetween(LocalDateTime start, LocalDateTime end);
 }

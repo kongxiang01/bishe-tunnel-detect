@@ -66,7 +66,11 @@ function Logs() {
       dataIndex: 'createTime',
       key: 'createTime',
       width: 180,
-      render: (text) => <span style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{text || '—'}</span>,
+      render: (text) => {
+        if (!text) return <span style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>—</span>;
+        const formatted = text.replace('T', ' ').split('.')[0];
+        return <span style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{formatted}</span>;
+      },
     },
     {
       title: '级别',

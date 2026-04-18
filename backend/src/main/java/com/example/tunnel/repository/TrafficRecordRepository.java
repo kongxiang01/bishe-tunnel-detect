@@ -18,4 +18,22 @@ public interface TrafficRecordRepository extends JpaRepository<TrafficRecord, Lo
 
     @Query("SELECT COUNT(t) FROM TrafficRecord t WHERE t.deviceId = :deviceId AND t.recordTime >= :startOfDay AND t.recordTime <= :endOfDay")
     long countTodayTrafficByDevice(@Param("deviceId") String deviceId, @Param("startOfDay") LocalDateTime startOfDay, @Param("endOfDay") LocalDateTime endOfDay);
+
+    @Query("SELECT COUNT(t) FROM TrafficRecord t WHERE t.recordTime >= :start AND t.recordTime <= :end")
+    long countTrafficByTimeRange(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query("SELECT COUNT(t) FROM TrafficRecord t WHERE t.deviceId = :deviceId AND t.recordTime >= :start AND t.recordTime <= :end")
+    long countTrafficByDeviceAndTimeRange(@Param("deviceId") String deviceId,
+                                          @Param("start") LocalDateTime start,
+                                          @Param("end") LocalDateTime end);
+
+    @Query("SELECT FUNCTION('DAY', t.recordTime), COUNT(t) FROM TrafficRecord t " +
+           "WHERE t.recordTime >= :start AND t.recordTime <= :end " +
+           "GROUP BY FUNCTION('DAY', t.recordTime) ORDER BY FUNCTION('DAY', t.recordTime)")
+    List<Object[]> countDailyTrafficInRange(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query("SELECT FUNCTION('MONTH', t.recordTime), COUNT(t) FROM TrafficRecord t " +
+           "WHERE t.recordTime >= :start AND t.recordTime <= :end " +
+           "GROUP BY FUNCTION('MONTH', t.recordTime) ORDER BY FUNCTION('MONTH', t.recordTime)")
+    List<Object[]> countMonthlyTrafficInRange(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 }
