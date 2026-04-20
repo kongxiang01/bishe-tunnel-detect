@@ -53,7 +53,7 @@ class TrafficService:
                     print(f"[{time.strftime('%H:%M:%S')}] 🚙 车辆越线计数: track_id={tid}, device_id={self.device_id}")
                     threading.Thread(
                         target=send_traffic_count_to_backend,
-                        args=(tid, "cam_default"),
+                        args=(tid, self.device_id),
                         daemon=True
                     ).start()
         
