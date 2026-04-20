@@ -98,7 +98,8 @@ function Devices() {
       } else {
         const response = await axios.put(`/api/devices/update/${currentDevice.id}`, deviceData, getAuthHeaders());
         if (response.data.code === 200) {
-          setDevices(devices.map(d => d.id === currentDevice.id ? response.data.data : d));
+          // 后端返回的 data 为 null，用本地数据更新
+          setDevices(devices.map(d => d.id === currentDevice.id ? { ...d, ...formData } : d));
         }
       }
       setShowModal(false);
