@@ -151,7 +151,7 @@ export default function MainLayout() {
         <nav className="sidebar-nav">
           {navItems.map((item) => {
             // 非管理员用户隐藏用户管理菜单
-            if (item.path === '/users' && userRole !== 'ADMIN') {
+            if ((item.path === '/users' || item.path === '/devices') && userRole !== 'ADMIN') {
               return null;
             }
             return (

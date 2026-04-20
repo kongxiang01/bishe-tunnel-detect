@@ -1,6 +1,7 @@
 package com.example.tunnel.controller;
 
 import com.example.tunnel.annotation.Loggable;
+import com.example.tunnel.config.AuthInterceptor;
 import com.example.tunnel.dto.ApiResponse;
 import com.example.tunnel.entity.Device;
 import com.example.tunnel.repository.DeviceRepository;
@@ -8,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,6 +21,11 @@ public class DeviceController {
     @Autowired
     private DeviceRepository deviceRepository;
 
+    private boolean isAdmin(HttpServletRequest request) {
+        String role = (String) request.getAttribute(AuthInterceptor.USER_ROLE_ATTR);
+        return "ADMIN".equals(role);
+    }
+
     @GetMapping("/list")
     public ResponseEntity<ApiResponse<List<Device>>> listDevices() {
         List<Device> devices = deviceRepository.findAll();
@@ -27,22 +34,28 @@ public class DeviceController {
 
     @Loggable
     @PostMapping("/add")
-    public ResponseEntity<ApiResponse<Device>> addDevice(@RequestBody Device device) {
+    public ResponseEntity<ApiResponse<Device>> addDevice(@RequestBody Device device, HttpServletRequest request) {
+        if (!isAdmin(request)) {
+            return ResponseEntity.status(403).body(ApiResponse.error(403, "无权限：仅管理员可操作"));
+        }
         // 强制生成唯一的 deviceId，不依赖前端传递
         device.setDeviceId(java.util.UUID.randomUUID().toString().replace("-", ""));
         device.setStatus("ONLINE");
         Device saved = deviceRepository.save(device);
         return ResponseEntity.ok(ApiResponse.success("Device added", saved));
     }
-    
+
     @Loggable
     @PutMapping("/update/{id}")
-    public ResponseEntity<ApiResponse<Void>> updateDevice(@PathVariable Long id, @RequestBody Device updatedDevice) {
+    public ResponseEntity<ApiResponse<Void>> updateDevice(@PathVariable Long id, @RequestBody Device updatedDevice, HttpServletRequest request) {
+        if (!isAdmin(request)) {
+            return ResponseEntity.status(403).body(ApiResponse.error(403, "无权限：仅管理员可操作"));
+        }
         Optional<Device> optionalDevice = deviceRepository.findById(id);
         if (!optionalDevice.isPresent()) {
             return ResponseEntity.badRequest().body(ApiResponse.error(404, "Device not found"));
         }
-        
+
         Device device = optionalDevice.get();
         if (updatedDevice.getName() != null) device.setName(updatedDevice.getName());
         if (updatedDevice.getLocation() != null) device.setLocation(updatedDevice.getLocation());
@@ -50,14 +63,17 @@ public class DeviceController {
         if (updatedDevice.getStatus() != null) device.setStatus(updatedDevice.getStatus());
         if (updatedDevice.getResolution() != null) device.setResolution(updatedDevice.getResolution());
         if (updatedDevice.getFps() != null) device.setFps(updatedDevice.getFps());
-        
+
         deviceRepository.save(device);
         return ResponseEntity.ok(ApiResponse.success("Device updated", null));
     }
 
     @Loggable
     @DeleteMapping("/delete/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteDevice(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteDevice(@PathVariable Long id, HttpServletRequest request) {
+        if (!isAdmin(request)) {
+            return ResponseEntity.status(403).body(ApiResponse.error(403, "无权限：仅管理员可操作"));
+        }
         if (!deviceRepository.existsById(id)) {
             return ResponseEntity.badRequest().body(ApiResponse.error(404, "Device not found"));
         }
