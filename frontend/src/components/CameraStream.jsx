@@ -7,12 +7,18 @@ export default function CameraStream({ device, isDetecting, onEvent, style }) {
   const [frameCount, setFrameCount] = useState(0);
   const [streamStatus, setStreamStatus] = useState('connecting');
 
+  // 检测关闭时重置帧率
+  useEffect(() => {
+    if (!isDetecting) {
+      setFrameCount(0);
+    }
+  }, [isDetecting]);
+
   useEffect(() => {
     let ws = null;
 
     if (isDetecting && device?.streamUrl) {
       const targetUrl = encodeURIComponent(device.streamUrl);
-      // console.log('2222',device.deviceId, device.streamUrl)
       ws = new WebSocket(`${ALGO_WS}?stream_url=${targetUrl}&device_id=${encodeURIComponent(device.deviceId)}&device_name=${encodeURIComponent(device.name)}`);
 
       ws.onopen = () => {
@@ -141,7 +147,10 @@ export default function CameraStream({ device, isDetecting, onEvent, style }) {
         </div>
         <div style={styles.headerRight}>
           <span className="fps-indicator">
-            {frameCount} FPS
+            视频帧率 {frameCount}
+          </span>
+          <span className="fps-indicator" style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
+            检测帧率 {frameCount}
           </span>
         </div>
       </div>
@@ -223,8 +232,9 @@ const styles = {
   },
   headerRight: {
     display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: '2px',
   },
   video: {
     position: 'absolute',
