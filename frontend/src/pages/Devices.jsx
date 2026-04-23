@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Table, Button, Space, Popconfirm, ConfigProvider, theme } from 'antd';
+import { Table, Button, Space, Popconfirm, ConfigProvider, theme, Input, Select, Pagination } from 'antd';
+
+const { Option } = Select;
 
 const getAuthHeaders = () => ({
   headers: {
@@ -23,12 +25,38 @@ function Devices() {
     fps: ''
   });
 
-  const fetchDevices = async () => {
+  // 查询条件
+  const [searchName, setSearchName] = useState('');
+  const [searchLocation, setSearchLocation] = useState('');
+  const [searchStatus, setSearchStatus] = useState('');
+
+  // 分页
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0
+  });
+
+  const fetchDevices = async (page = 0, size = 10) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get('/api/devices/list', getAuthHeaders());
-      setDevices(response.data.data || []);
+      const params = new URLSearchParams({
+        page: page.toString(),
+        size: size.toString()
+      });
+      if (searchName) params.append('name', searchName);
+      if (searchLocation) params.append('location', searchLocation);
+      if (searchStatus) params.append('status', searchStatus);
+
+      const response = await axios.get(`/api/devices/list?${params.toString()}`, getAuthHeaders());
+      const pageData = response.data.data;
+      setDevices(pageData.content || []);
+      setPagination({
+        current: pageData.number + 1,
+        pageSize: pageData.size,
+        total: pageData.totalElements
+      });
     } catch (err) {
       console.error('Failed to fetch devices:', err);
       setError('获取设备列表失败');
@@ -38,8 +66,26 @@ function Devices() {
   };
 
   useEffect(() => {
-    fetchDevices();
+    fetchDevices(pagination.current - 1, pagination.pageSize);
   }, []);
+
+  const handleSearch = () => {
+    setPagination(prev => ({ ...prev, current: 1 }));
+    fetchDevices(0, pagination.pageSize);
+  };
+
+  const handleReset = () => {
+    setSearchName('');
+    setSearchLocation('');
+    setSearchStatus('');
+    setPagination(prev => ({ ...prev, current: 1 }));
+    fetchDevices(0, pagination.pageSize);
+  };
+
+  const handlePageChange = (page, pageSize) => {
+    setPagination(prev => ({ ...prev, current: page, pageSize }));
+    fetchDevices(page - 1, pageSize);
+  };
 
   const resetForm = () => {
     setFormData({
@@ -224,6 +270,16 @@ function Devices() {
             defaultBorderColor: '#2a3441',
             defaultColor: '#94a3b8',
           },
+          Input: {
+            colorBgContainer: '#1a2235',
+            colorBorder: '#2a3441',
+            colorText: '#f1f5f9',
+          },
+          Select: {
+            colorBgContainer: '#1a2235',
+            colorBorder: '#2a3441',
+            colorText: '#f1f5f9',
+          },
         },
       }}
     >
@@ -248,6 +304,38 @@ function Devices() {
             <h2>设备列表</h2>
           </div>
 
+          {/* 搜索表单 */}
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <Input
+              placeholder="设备名称"
+              value={searchName}
+              onChange={e => setSearchName(e.target.value)}
+              onPressEnter={handleSearch}
+              style={{ width: 160 }}
+              allowClear
+            />
+            <Input
+              placeholder="位置"
+              value={searchLocation}
+              onChange={e => setSearchLocation(e.target.value)}
+              onPressEnter={handleSearch}
+              style={{ width: 160 }}
+              allowClear
+            />
+            <Select
+              placeholder="状态"
+              value={searchStatus || undefined}
+              onChange={setSearchStatus}
+              style={{ width: 120 }}
+              allowClear
+            >
+              <Option value="ONLINE">在线</Option>
+              <Option value="OFFLINE">离线</Option>
+            </Select>
+            <Button onClick={handleSearch}>查询</Button>
+            <Button onClick={handleReset}>重置</Button>
+          </div>
+
           <Table
             columns={columns}
             dataSource={devices}
@@ -259,6 +347,20 @@ function Devices() {
             }}
             className="devices-table"
           />
+
+          {pagination.total > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+              <Pagination
+                current={pagination.current}
+                pageSize={pagination.pageSize}
+                total={pagination.total}
+                onChange={handlePageChange}
+                showSizeChanger
+                showQuickJumper
+                showTotal={total => `共 ${total} 条`}
+              />
+            </div>
+          )}
         </div>
 
         {showModal && (

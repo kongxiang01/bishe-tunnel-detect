@@ -17,6 +17,7 @@ Thumbs.db
 # Markdown docs
 *.md
 !README.md
+!论文相关\毕业论文初稿.md
 
 *.mp4
 

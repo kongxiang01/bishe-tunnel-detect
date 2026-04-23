@@ -3,13 +3,21 @@ package com.example.tunnel.controller;
 import com.example.tunnel.annotation.Loggable;
 import com.example.tunnel.config.AuthInterceptor;
 import com.example.tunnel.dto.ApiResponse;
+import com.example.tunnel.dto.PageResponse;
 import com.example.tunnel.entity.Device;
 import com.example.tunnel.repository.DeviceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.persistence.criteria.Predicate;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,10 +34,56 @@ public class DeviceController {
         return "ADMIN".equals(role);
     }
 
+    /**
+     * 获取设备列表（支持分页和动态查询）
+     * @param page 页码（从0开始）
+     * @param size 每页大小
+     * @param name 设备名称（模糊匹配）
+     * @param location 设备位置（模糊匹配）
+     * @param status 设备状态（精确匹配）
+     */
     @GetMapping("/list")
-    public ResponseEntity<ApiResponse<List<Device>>> listDevices() {
-        List<Device> devices = deviceRepository.findAll();
-        return ResponseEntity.ok(ApiResponse.success(devices));
+    public ResponseEntity<ApiResponse<PageResponse<Device>>> listDevices(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) String status) {
+
+        // 构建动态查询条件
+        Specification<Device> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (name != null && !name.trim().isEmpty()) {
+                predicates.add(criteriaBuilder.like(root.get("name"), "%" + name + "%"));
+            }
+
+            if (location != null && !location.trim().isEmpty()) {
+                predicates.add(criteriaBuilder.like(root.get("location"), "%" + location + "%"));
+            }
+
+            if (status != null && !status.trim().isEmpty()) {
+                predicates.add(criteriaBuilder.equal(root.get("status"), status));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        // 创建分页请求，按id降序排列
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "id"));
+
+        // 执行分页查询
+        Page<Device> pageResult = deviceRepository.findAll(spec, pageable);
+
+        PageResponse<Device> pageResponse = new PageResponse<>(
+                pageResult.getContent(),
+                pageResult.getNumber(),
+                pageResult.getSize(),
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages()
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(pageResponse));
     }
 
     @Loggable

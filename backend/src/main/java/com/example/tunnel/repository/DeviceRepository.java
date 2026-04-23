@@ -2,11 +2,12 @@ package com.example.tunnel.repository;
 
 import com.example.tunnel.entity.Device;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
 @Repository
-public interface DeviceRepository extends JpaRepository<Device, Long> {
+public interface DeviceRepository extends JpaRepository<Device, Long>, JpaSpecificationExecutor<Device> {
     Optional<Device> findByDeviceId(String deviceId);
 }

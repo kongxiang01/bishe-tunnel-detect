@@ -85,8 +85,10 @@ export default function Monitor() {
     axios
       .get(API_BASE + '/devices/list')
       .then((res) => {
-        if (res.data.code === 200 && res.data.data.length > 0) {
-          setDevices(res.data.data);
+        if (res.data.code === 200 && res.data.data) {
+          const pageData = res.data.data;
+          // 兼容新分页格式和旧数组格式
+          setDevices(pageData.content || pageData || []);
         }
       })
       .catch((err) => {
