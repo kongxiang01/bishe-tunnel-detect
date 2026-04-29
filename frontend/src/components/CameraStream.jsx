@@ -4,13 +4,15 @@ const ALGO_WS = 'ws://localhost:8000/ws/stream';
 
 export default function CameraStream({ device, isDetecting, onEvent, style }) {
   const canvasRef = useRef(null);
-  const [frameCount, setFrameCount] = useState(0);
+  const [videoFps, setVideoFps] = useState(0);
+  const [detectFps, setDetectFps] = useState(0);
   const [streamStatus, setStreamStatus] = useState('connecting');
 
   // 检测关闭时重置帧率
   useEffect(() => {
     if (!isDetecting) {
-      setFrameCount(0);
+      setVideoFps(0);
+      setDetectFps(0);
     }
   }, [isDetecting]);
 
@@ -31,19 +33,29 @@ export default function CameraStream({ device, isDetecting, onEvent, style }) {
         }
       };
 
-      let lastFpsTime = performance.now();
-      let frameCount = 0;
+      let lastFrameTime = performance.now();
+      let detectFpsValue = 0;
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
 
+          // 更新视频帧率（来自算法端测量）
+          if (data.source_fps !== undefined) {
+            setVideoFps(data.source_fps);
+          } else {
+            setVideoFps(-1); // 无法获取帧率
+          }
+
+          // 计算检测帧率（基于消息间隔的滑动平均）
           const now = performance.now();
-          frameCount++;
-          if (now - lastFpsTime >= 1000) {
-            setFrameCount(frameCount);
-            frameCount = 0;
-            lastFpsTime = now;
+          const frameInterval = now - lastFrameTime;
+          lastFrameTime = now;
+
+          if (frameInterval > 0) {
+            const instantaneousFps = 1000 / frameInterval;
+            detectFpsValue = detectFpsValue * 0.9 + instantaneousFps * 0.1;
+            setDetectFps(Math.round(detectFpsValue));
           }
 
           if (data.detections) {
@@ -146,11 +158,13 @@ export default function CameraStream({ device, isDetecting, onEvent, style }) {
           <span style={styles.location}>{device.location}</span>
         </div>
         <div style={styles.headerRight}>
-          <span className="fps-indicator">
-            视频帧率 {frameCount}
-          </span>
+          { videoFps > 0 && (
+            <span className="fps-indicator">
+              视频帧率 {videoFps}
+            </span>
+          )}
           <span className="fps-indicator" style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
-            检测帧率 {frameCount}
+            检测帧率 {detectFps}
           </span>
         </div>
       </div>

@@ -13,6 +13,7 @@ from app.services.model_service import ModelService
 from app.services.tracker_service import TrackerService
 from app.services.event_service import EventService
 from app.services.traffic_service import TrafficService
+# from app.services.video_fps_service import VideoFpsService
 
 app = FastAPI(title="Tunnel MVP Algorithm Service")
 
@@ -55,8 +56,8 @@ async def websocket_endpoint(websocket: WebSocket, stream_url: str = None, devic
     print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 正在拉取源视频流: {target_stream}")
     
     cap = cv2.VideoCapture(target_stream)
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1) 
-    
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
     if not cap.isOpened():
         print(f"[{datetime.now().strftime('%H:%M:%S')}] ❌ 无法连接到视频流: {stream_url}")
         await websocket.close(code=1011, reason="Stream unreachable")
@@ -67,7 +68,11 @@ async def websocket_endpoint(websocket: WebSocket, stream_url: str = None, devic
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     print(f"[{datetime.now().strftime('%H:%M:%S')}] 🎥 视频流拉取成功! 初始诊断 => 分辨率: {width}x{height}, 源端FPS: {fps}")
-    
+
+    # 启动独立线程测量视频帧率
+    # video_fps_service = VideoFpsService(target_stream, fps)
+    # video_fps_service.start()
+
     try:
         frame_id = 0
         skip_counter = 0
@@ -126,6 +131,7 @@ async def websocket_endpoint(websocket: WebSocket, stream_url: str = None, devic
             await websocket.send_json({
                 "frame_id": frame_id,
                 "timestamp_ms": round(now * 1000),
+                # "source_fps": video_fps_service.get_fps(),
                 "vehicle_count": len(detections),
                 "detections": detections,
                 "events": current_events,
@@ -142,4 +148,5 @@ async def websocket_endpoint(websocket: WebSocket, stream_url: str = None, devic
         traceback.print_exc()
     finally:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] 🛑 释放视频流资源。")
+        # video_fps_service.stop()
         cap.release()

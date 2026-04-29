@@ -551,14 +551,24 @@ export default function Events() {
                           }}
                         />
                       );
-                    } else {
-                      // 实时流地址，使用 video 元素
+                    } else if (isImage) {
                       return (
-                        <video
+                        <img
                           src={url}
-                          controls
-                          autoPlay
-                          loop
+                          alt="事件快照"
+                          style={{ width: '100%', display: 'block' }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                      );
+                    } else {
+                      // MJPEG 实时流地址，使用 img 元素（video 标签无法播放 MJPEG）
+                      return (
+                        <img
+                          src={url}
+                          alt="事件视频流"
                           style={{ width: '100%', display: 'block' }}
                           onError={(e) => {
                             e.target.style.display = 'none';

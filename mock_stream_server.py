@@ -24,7 +24,7 @@ cameras = {
     "camera_01": {"frame": None, "file": "隧道视频1.0.mp4"},
     "camera_02": {"frame": None, "file": "隧道视频2.0.mp4"},
     "camera_03": {"frame": None, "file": "隧道视频3.0.mp4"},
-    "camera_04": {"frame": None, "file": "起火精简版.mp4"},
+    "camera_04": {"frame": None, "file": "隧道视频4.0.mp4"},
     "camera_05": {"frame": None, "file": "普通道路.mp4"},
 }
 
