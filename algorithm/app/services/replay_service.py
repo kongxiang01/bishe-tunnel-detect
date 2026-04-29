@@ -62,28 +62,38 @@ class ReplayService:
         event_id = task['event_id']
         frames = task['frames']
         if not frames:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] ⚠️ 录制任务 {event_id} 无帧可存，跳过")
             return
-            
-        height, width, _ = frames[0].shape
-        img_name = f"{event_id}.jpg"
-        img_path = os.path.join(self.save_dir, img_name)
-        
-        # 存一张事件刚刚发生时的截图 (也就是 pre_frames 的最后一帧附近的内容)
-        if len(frames) > self.fps * self.post_seconds:
-            key_frame_idx = len(frames) - self.fps * self.post_seconds
-            cv2.imwrite(img_path, frames[key_frame_idx])
-        else:
-            cv2.imwrite(img_path, frames[0])
-        
-        # 保存视频 - 改用 webm 或 h264 兼容性更好的编码，这里使用 mp4 + avc1 编码格式，或者如果 OpenCV 没对应插件则最好使用 VP8 webm 以确保浏览器原生支持
-        # 为了最高兼容度我们采用 WebM 格式
-        video_name = f"{event_id}.webm"
-        video_path = os.path.join(self.save_dir, video_name)
-        fourcc = cv2.VideoWriter_fourcc(*'vp80')
-        out = cv2.VideoWriter(video_path, fourcc, self.fps, (width, height))
-        
-        for frame in frames:
-            out.write(frame)
-            
-        out.release()
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] 📼 事件视频已合成: {video_path}")
+
+        try:
+            height, width, _ = frames[0].shape
+            img_name = f"{event_id}.jpg"
+            img_path = os.path.join(self.save_dir, img_name)
+
+            # 存一张事件刚刚发生时的截图 (也就是 pre_frames 的最后一帧附近的内容)
+            if len(frames) > self.fps * self.post_seconds:
+                key_frame_idx = len(frames) - self.fps * self.post_seconds
+                success = cv2.imwrite(img_path, frames[key_frame_idx])
+            else:
+                success = cv2.imwrite(img_path, frames[0])
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] 🖼️ 快照 {'成功' if success else '失败'}: {img_path}")
+
+            # 保存视频 - 改用 webm 或 h264 兼容性更好的编码，这里使用 mp4 + avc1 编码格式，或者如果 OpenCV 没对应插件则最好使用 VP8 webm 以确保浏览器原生支持
+            # 为了最高兼容度我们采用 WebM 格式
+            video_name = f"{event_id}.webm"
+            video_path = os.path.join(self.save_dir, video_name)
+            fourcc = cv2.VideoWriter_fourcc(*'vp80')
+            out = cv2.VideoWriter(video_path, fourcc, self.fps, (width, height))
+
+            if not out.isOpened():
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] ❌ VideoWriter 初始化失败! codec=VP80, fps={self.fps}, resolution={width}x{height}")
+
+            for frame in frames:
+                out.write(frame)
+
+            out.release()
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] 📼 事件视频已合成: {video_path}")
+        except Exception as e:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] ❌ 视频合成异常 ({event_id}): {e}")
+            import traceback
+            traceback.print_exc()

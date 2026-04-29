@@ -85,8 +85,8 @@ class EventService:
             # --- 针对静态异常采取直接阻断+冷却上报的形式 ---
             class_name = det.get("class_name", "")
             
-            # 加上 len(history) > 1 防抖：必须连续出现至少两帧才确认为异常，防止单帧干扰
-            if class_name in self.event_type_cooldowns and len(history) > 1:
+            # 防抖：必须连续出现至少10帧才确认为异常，防止单帧或短时干扰
+            if class_name in self.event_type_cooldowns and len(history) >= 10:
                 # 检查该类型的事件是否还在冷却期内 (使用 config 中的独立冷却时间，通常为半小时)
                 last_time = self.event_type_cooldowns[class_name]
                 
@@ -135,65 +135,71 @@ class EventService:
             if not self.track_history[tid]["alerted"]:
                 pass # 原针对火/车祸的处理已经被我直接拿到了上方的立刻上报逻辑中处理了
 
-        # 规则 4 替换方案：轻量级交通拥堵状态建模
-        # 我们根据画面中所有 'vehicle' 的平均相对移动速度和密度来计算拥堵指数，抵抗透视形变
+        # 规则 4 替换方案：轻量级交通拥堵状态建模（升级版：慢速比例与远端过滤算法）
+        # 我们根据画面中“有效”的中近距离车辆的速度，来计算缓慢/停止行驶的车辆占比。不再受限于单纯的数量相除。
         if current_time - self.last_congestion_alert > settings.ALERT_COOLDOWN:
             vehicles = [det for det in detections if det.get("class_name") == "vehicle"]
-            N = len(vehicles)
             
-            # 当车辆数超过拥堵触发下限时才进行速度计算
-            if N >= settings.MIN_VEHICLES_FOR_CONGESTION:
-                total_speed = 0.0
-                valid_vehicles = 0
+            # 用于统计近场、中场真实有效的车辆数
+            valid_vehicles = 0
+            slow_vehicles = 0
+            
+            for det in vehicles:
+                # 获取当前框自身的对角线长度作为衡量远近和透视的尺规
+                bbox = det["bbox"]
+                diag_len = ((bbox[2] - bbox[0])**2 + (bbox[3] - bbox[1])**2)**0.5
                 
-                for det in vehicles:
-                    tid = det["track_id"]
-                    history = self.track_history.get(tid, {}).get("history", [])
-                    if len(history) > 1:
-                        # 计算起止位移与时间差求出绝对像素位移
-                        disp_dist = ((history[-1][0] - history[0][0])**2 + (history[-1][1] - history[0][1])**2)**0.5
-                        time_span = history[-1][2] - history[0][2]
-                        
-                        if time_span > 0:
-                            # 方案二核心：获取当前框自身的对角线长度作为“透视尺规”
-                            bbox = det["bbox"]
-                            diag_len = ((bbox[2] - bbox[0])**2 + (bbox[3] - bbox[1])**2)**0.5
-                            diag_len = max(diag_len, 1.0) # 避免除零
-                            
-                            # 相对速度：每秒移动了几个“车身比例” (v_relative)
-                            # 为了无缝兼容原有 config.py 里的 5.0 阈值，乘以 100 进行标准化放缩
-                            v_norm = (disp_dist / diag_len) * 100.0 / time_span
-                            
-                            total_speed += v_norm
-                            valid_vehicles += 1
+                # [关键优化1] 忽略远端极小的目标检测框（通常对角线像素小于30或面积太小）
+                # 过滤掉远处拥挤的假目标和追踪噪音
+                if diag_len < 30.0:
+                    continue
                 
-                if valid_vehicles > 0:
-                    v_avg = total_speed / valid_vehicles
-                    # 拥堵指数公式： I = V_avg_norm / N (平均标准化速度相比车辆密度占比)
-                    congestion_index = v_avg / N
+                tid = det["track_id"]
+                history = self.track_history.get(tid, {}).get("history", [])
+                
+                if len(history) > 1:
+                    # 计算起止位移与时间差求出绝对像素位移
+                    disp_dist = ((history[-1][0] - history[0][0])**2 + (history[-1][1] - history[0][1])**2)**0.5
+                    time_span = history[-1][2] - history[0][2]
                     
-                    if congestion_index < settings.CONGESTION_INDEX_THRESHOLD:
-                        self.last_congestion_alert = current_time
-                        event_msg = f"🐌 交通拥堵：识别到多车缓行阻塞 (车辆数:{N}, 指数:{congestion_index:.2f})"
+                    if time_span > 0:
+                        diag_len = max(diag_len, 1.0)
+                        # 相对速度：每秒移动了几个“车身比例” (v_relative)
+                        v_norm = (disp_dist / diag_len) * 100.0 / time_span
                         
-                        event_uuid = str(uuid.uuid4())
-                        self.replay_service.trigger_record(event_uuid)
+                        valid_vehicles += 1
+                        # [关键优化2] 直接对每个车辆建立状态：速度低于界限属于停止或慢速蠕动
+                        # 原先的 5.0 也是偏向低速的数值，如果车辆蠕动极慢，归入 slow 队列
+                        if v_norm < 15.0:  # 这个阈值可随场景调整，15代表较缓慢的车流
+                            slow_vehicles += 1
+                            
+            # [关键优化3] 当且仅当有效车辆达到下限，且停滞不前的车辆比例非常高时(比如大于 60%) 才触发拥堵警报
+            if valid_vehicles >= settings.MIN_VEHICLES_FOR_CONGESTION:
+                slow_ratio = slow_vehicles / valid_vehicles
+                
+                # 如果有超过 60% 的车辆都处于低速停滞状态
+                if slow_ratio > 0.60:
+                    self.last_congestion_alert = current_time
+                    event_msg = f"🐌 交通拥堵：识别到大量车辆缓行阻塞 (近视场总数:{valid_vehicles}, 拥堵比例:{slow_ratio*100:.1f}%)"
+                    
+                    event_uuid = str(uuid.uuid4())
+                    self.replay_service.trigger_record(event_uuid)
 
-                        threading.Thread(
-                            target=send_event_to_backend,
-                            args=(0, "TRAFFIC_CONGESTION", event_msg, "NORMAL", self.device_id, self.device_name, event_uuid),
-                            daemon=True
-                        ).start()
+                    threading.Thread(
+                        target=send_event_to_backend,
+                        args=(0, "TRAFFIC_CONGESTION", event_msg, "NORMAL", self.device_id, self.device_name, event_uuid),
+                        daemon=True
+                    ).start()
 
-                        current_events.append({
-                            "type": "traffic_congestion",
-                            "severity": "NORMAL",
-                            "track_id": 0,
-                            "message": event_msg,
-                            "timestamp": int(current_time * 1000),
-                            "event_uuid": event_uuid
-                        })
-                        print(f"[{datetime.now().strftime('%H:%M:%S')}] 🚨 EventService: {event_msg}")
+                    current_events.append({
+                        "type": "traffic_congestion",
+                        "severity": "NORMAL",
+                        "track_id": 0,
+                        "message": event_msg,
+                        "timestamp": int(current_time * 1000),
+                        "event_uuid": event_uuid
+                    })
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] 🚨 EventService: {event_msg}")
 
         # 垃圾回收：清理过期未出现的轨迹 (超过 10 秒)
         for tid in list(self.track_history.keys()):

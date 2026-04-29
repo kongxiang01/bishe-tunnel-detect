@@ -111,7 +111,7 @@ export default function CameraGrid({ devices, onEvent }) {
         </div>
       ) : (
         <div
-          className={`camera-grid ${visibleDevices.length === 1 ? 'single' : ''}`}
+          className="camera-grid"
           style={{ gridTemplateColumns: `repeat(${gridCols}, 1fr)` }}
         >
           {visibleDevices.map((device, index) => (

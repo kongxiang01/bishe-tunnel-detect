@@ -636,6 +636,32 @@ body {
   border-left-color: var(--accent-warning);
 }
 
+.event-card.danger {
+  border-left-color: #ef4444;
+}
+
+.event-card.danger .event-icon {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.event-card.danger .event-type {
+  color: #ef4444;
+}
+
+.event-card.normal {
+  border-left-color: #475569;
+}
+
+.event-card.normal .event-icon {
+  background: rgba(71, 85, 105, 0.15);
+  color: #475569;
+}
+
+.event-card.normal .event-type {
+  color: #475569;
+}
+
 .event-icon {
   width: 36px;
   height: 36px;
@@ -851,13 +877,13 @@ body {
 }
 
 .alert-toast.danger {
-  background-color: #ef4444;
-  border-left: 4px solid #991b1b;
+  background-color: #b91c1c;
+  border-left: 4px solid #7f1d1d;
 }
 
 .alert-toast.warning {
-  background-color: #f59e0b;
-  border-left: 4px solid #b45309;
+  background-color: #d97706;
+  border-left: 4px solid #92400e;
 }
 
 .alert-toast.normal {

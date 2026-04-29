@@ -509,7 +509,7 @@ export default function Events() {
                     color: 'var(--accent-warning)',
                   }}
                 >
-                  注意：若存在历史切片将优先播放历史录像，否则降级显示设备实时流。
+                  优先使用事件视频切片，其次为快照，最后降级至设备实时流。
                 </div>
                 <div
                   style={{
@@ -520,31 +520,54 @@ export default function Events() {
                     minHeight: '300px',
                   }}
                 >
-                  {replayModal.replayInfo.streamUrl &&
-                  (replayModal.replayInfo.streamUrl.endsWith('.mp4') ||
-                    replayModal.replayInfo.streamUrl.endsWith('.webm')) ? (
-                    <video
-                      src={replayModal.replayInfo.streamUrl}
-                      controls
-                      autoPlay
-                      loop
-                      style={{ width: '100%', display: 'block' }}
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
-                      }}
-                    />
-                  ) : (
-                    <img
-                      src={replayModal.replayInfo.streamUrl}
-                      alt="事件回放"
-                      style={{ width: '100%', display: 'block' }}
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
-                      }}
-                    />
-                  )}
+                  {(() => {
+                    const url = replayModal.replayInfo.streamUrl;
+                    const isVideoFile = url?.endsWith('.mp4') || url?.endsWith('.webm');
+                    const isImage = url?.match(/\.(jpg|jpeg|png|gif)$/i);
+
+                    if (isVideoFile) {
+                      return (
+                        <video
+                          src={url}
+                          controls
+                          autoPlay
+                          loop
+                          style={{ width: '100%', display: 'block' }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                      );
+                    } else if (isImage) {
+                      return (
+                        <img
+                          src={url}
+                          alt="事件快照"
+                          style={{ width: '100%', display: 'block' }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                      );
+                    } else {
+                      // 实时流地址，使用 video 元素
+                      return (
+                        <video
+                          src={url}
+                          controls
+                          autoPlay
+                          loop
+                          style={{ width: '100%', display: 'block' }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                      );
+                    }
+                  })()}
                   <div
                     style={{
                       display: 'none',
@@ -566,7 +589,7 @@ export default function Events() {
                       <line x1="12" y1="8" x2="12" y2="12"></line>
                       <line x1="12" y1="16" x2="12.01" y2="16"></line>
                     </svg>
-                    <span>视频流加载失败</span>
+                    <span>加载失败，请检查视频流是否可用</span>
                   </div>
                 </div>
               </>

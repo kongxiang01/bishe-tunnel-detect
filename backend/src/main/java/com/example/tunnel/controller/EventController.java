@@ -176,16 +176,18 @@ public class EventController {
         replayInfo.put("videoClipUrl", event.getVideoClipUrl());
         replayInfo.put("imageUrl", event.getImageUrl());
 
-        // MVP版本兼容：优先返回真实回放和快照。若没有，再降级返回实时流兜底
+        // 优先级：视频切片 > 快照 > 实时流
+        String streamUrl = null;
         if (event.getVideoClipUrl() != null && !event.getVideoClipUrl().isEmpty()) {
-            replayInfo.put("streamUrl", event.getVideoClipUrl());
+            streamUrl = event.getVideoClipUrl();
+        } else if (event.getImageUrl() != null && !event.getImageUrl().isEmpty()) {
+            streamUrl = event.getImageUrl();
         } else if (event.getDeviceId() != null && !event.getDeviceId().isEmpty()) {
-            String streamUrl = "http://localhost:5000/stream/" + event.getDeviceId();
-            replayInfo.put("streamUrl", streamUrl);
+            streamUrl = "http://localhost:5000/stream/" + event.getDeviceId();
         } else {
-            // 默认返回第一个摄像头
-            replayInfo.put("streamUrl", "http://localhost:5000/stream/camera_01");
+            streamUrl = "http://localhost:5000/stream/camera_01";
         }
+        replayInfo.put("streamUrl", streamUrl);
 
         return ResponseEntity.ok(ApiResponse.success(replayInfo));
     }
